@@ -83,6 +83,13 @@ input,textarea{font:inherit;-webkit-user-select:text;user-select:text}
 .tool svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #joy{position:absolute;left:calc(20px + var(--sal));bottom:calc(24px + var(--sab));width:136px;height:136px;border-radius:50%;pointer-events:auto;touch-action:none;
   background:radial-gradient(circle,rgba(255,240,210,.14) 40%,rgba(255,240,210,.28));border:2px solid rgba(255,240,210,.5)}
+#moodBtn{position:absolute;left:calc(20px + var(--sal));bottom:calc(176px + var(--sab));min-height:42px;max-width:min(62vw,300px);padding:0 14px 0 10px;border-radius:21px;pointer-events:auto;
+  background:rgba(40,22,30,.72);color:#ffeccb;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
+#moodBtn svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#moodBtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#moodBtn.on{background:rgba(255,246,229,.92);color:var(--ink);box-shadow:0 0 0 2px var(--gold)}
+#moodText{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);padding:0 13px;font-size:17px;background:#fff;color:var(--ink)}
+@media (min-width:820px) and (pointer:fine){ #moodBtn{bottom:calc(24px + var(--sab))} }
 #knob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;
   background:radial-gradient(circle at 40% 35%,#fff4dc,#d9b98a);box-shadow:0 3px 10px rgba(0,0,0,.35);pointer-events:none}
 #action{position:absolute;right:calc(18px + var(--sar));bottom:calc(36px + var(--sab));min-width:150px;max-width:56vw;min-height:84px;padding:10px 20px;border-radius:24px;pointer-events:auto;
@@ -90,7 +97,7 @@ input,textarea{font:inherit;-webkit-user-select:text;user-select:text}
   box-shadow:0 4px 0 var(--red2),0 0 0 4px rgba(233,180,76,.75),0 8px 26px rgba(0,0,0,.4);animation:breath 1.8s ease-in-out infinite}
 #action:active{transform:translateY(2px)}
 @keyframes breath{50%{box-shadow:0 4px 0 var(--red2),0 0 0 8px rgba(233,180,76,.4),0 8px 26px rgba(0,0,0,.4)}}
-body.busy #joy,body.busy #action,body.busy #tools,body.busy #counter,body.busy #toast{display:none}
+body.busy #joy,body.busy #moodBtn,body.busy #action,body.busy #tools,body.busy #counter,body.busy #toast{display:none}
 #caption{position:absolute;left:50%;top:calc(66px + var(--sat));transform:translateX(-50%);max-width:88vw;padding:9px 18px;border-radius:14px;background:rgba(40,22,30,.72);
   color:#fff0d2;font-family:var(--serif);font-size:18px;text-align:center;opacity:0;transition:opacity .35s}
 #caption.on{opacity:1}
@@ -210,7 +217,7 @@ textarea{width:100%;height:96px;resize:none;border-radius:14px;border:2px solid 
     <div id="wLook"></div>
     <button id="enterBtn" class="btn main">Vào chùa</button>
     <div id="wstatus" role="status"></div>
-    <div class="wnote">Trò chơi thư giãn, không quảng cáo, không thu tiền. Lời cầu, quẻ và điểm chỉ lưu trên máy của bạn. Khi chơi qua link, tên và vị trí nhân vật của bạn hiện cho người đang cùng vào.</div>
+    <div class="wnote">Trò chơi thư giãn, không quảng cáo, không thu tiền. Lời cầu, quẻ và điểm chỉ lưu trên máy của bạn. Khi chơi qua link, tên, vị trí và tâm trạng nhân vật của bạn hiện cho người đang cùng vào.</div>
     </div>
   </div>
 </section>
@@ -227,6 +234,7 @@ textarea{width:100%;height:96px;resize:none;border-radius:14px;border:2px solid 
   <div id="caption" aria-live="polite"></div>
   <div id="toast" role="status"></div>
   <div id="joy" aria-hidden="true"><div id="knob"></div></div>
+  <button id="moodBtn" aria-label="Gõ tâm trạng"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/><path d="M9 13.5c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5"/><path d="M9.5 9.5h.01M14.5 9.5h.01"/></svg><span>Tâm trạng</span></button>
   <button id="action" class="hide"></button>
 </div>
 
@@ -280,6 +288,7 @@ function dampAngle(a, b, k, dt) {
   return a + d * (1 - Math.exp(-k * dt));
 }
 const wrapAngle = a => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
+const poseDrop = p => p === 'sit' || p === 'meditate' || p === 'chant' ? -.26 : p === 'kneel' ? -.17 : 0; // hạ người khi ngồi, quỳ
 const inHallArea = (x, z) => z < -11.5 && Math.abs(x) < 15.5;
 const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dateVi = iso => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`; };
@@ -290,7 +299,7 @@ let THREE = null;
 /* ===== LƯU TRÊN MÁY (localStorage): tên, lần thắp hương, điểm Tâm an, lời cầu, quẻ ===== */
 const Store = {
   key: 'canhalenchua.v1',
-  data: { name: '', incense: 0, best: 0, prayers: [], fortunes: [], tutorialDone: false, muted: false, look: { outfit: 0, hair: 0, hat: false }, family: true, music: true },
+  data: { name: '', incense: 0, best: 0, prayers: [], fortunes: [], tutorialDone: false, muted: false, look: { outfit: 0, hair: 0, hat: false }, family: true, music: true, mood: '' },
   load() {
     try {
       const raw = localStorage.getItem(this.key);
@@ -393,36 +402,14 @@ const Snd = {
     const lfo2 = c.createOscillator(); lfo2.frequency.value = .057; const lg2 = c.createGain(); lg2.gain.value = .045; lfo2.connect(lg2); lg2.connect(wg.gain); lfo2.start();
     const leaf = this.noiseSrc(true), lfh = c.createBiquadFilter(); lfh.type = 'highpass'; lfh.frequency.value = 3200;
     this.leafGain = c.createGain(); this.leafGain.gain.value = .014; leaf.connect(lfh); lfh.connect(this.leafGain); this.leafGain.connect(this.bgBus);
-    // Giọng tụng: vài dao động răng cưa lọc thấp, đẩy qua vang cho xa
+    // Kênh mõ: tiếng mõ dẫn nhịp khi người chơi gõ mõ tụng kinh
     this.chantBus = c.createGain(); this.chantBus.gain.value = .55;
-    const chantLP = c.createBiquadFilter(); chantLP.type = 'lowpass'; chantLP.frequency.value = 1700; chantLP.Q.value = .9;
-    const form = c.createBiquadFilter(); form.type = 'peaking'; form.frequency.value = 850; form.gain.value = 11; form.Q.value = 1.4;
-    this.syl = c.createGain(); this.syl.gain.value = 0;
-    this.chantOsc = [];
-    [98, 98.6, 147.4].forEach((f, i) => { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; const g = c.createGain(); g.gain.value = i === 2 ? .3 : .55; o.connect(g); g.connect(this.syl); o.start(); this.chantOsc.push(o); });
-    this.syl.connect(chantLP); chantLP.connect(form); form.connect(this.chantBus);
     const dry = c.createGain(); dry.gain.value = .18; this.chantBus.connect(dry); dry.connect(this.bgBus);
     const wet = c.createGain(); wet.gain.value = .5; this.chantBus.connect(wet); wet.connect(this.rev);
     this.chantNext = c.currentTime + 1.5;
-    this.timers.push(setInterval(() => this.scheduleChant(), 400));
+    // Giọng tụng tổng hợp cũ đã bỏ: nhạc thiền đảm nhận phần nhạc nền
     this.birdAt = c.currentTime + 2; this.rustleAt = c.currentTime + 3; this.bellAt = c.currentTime + 14;
     this.timers.push(setInterval(() => this.ambientTick(), 500));
-  },
-  scheduleChant() {
-    const c = this.ctx; if (c.state !== 'running') return;
-    while (this.chantNext < c.currentTime + 1.2) {
-      let t = this.chantNext;
-      const beats = [.56, .56, .56, .56, .56, 1.0]; // "Nam mô A Di Đà Phật"
-      const pitch = [1, 1, 1.1225, 1, 1, .8409]; // giữ trong ngũ cung Sol cho hợp nhạc nền
-      for (let i = 0; i < beats.length; i++) {
-        this.syl.gain.setTargetAtTime(.13, t, .05);
-        this.syl.gain.setTargetAtTime(.02, t + beats[i] * .72, .06);
-        this.chantOsc.forEach(o => o.detune.setTargetAtTime(1200 * Math.log2(pitch[i]), t, .05));
-        if (!this.focus) { this.tock(t, .05); this.tockQ.push(t); if (this.tockQ.length > 40) this.tockQ.shift(); } // thầy ngồi tụng gõ theo nhịp này
-        t += beats[i];
-      }
-      this.chantNext = t + rand(.9, 2.4);
-    }
   },
   ambientTick() {
     const c = this.ctx; if (c.state !== 'running') return; const t = c.currentTime;
@@ -569,8 +556,8 @@ const Snd = {
     for (const x of [o, o2, vib]) { x.start(t); x.stop(end); } n.start(t, Math.random() * 2); n.stop(end);
   },
   // Bát chuông (chuông gia trì): bội âm lệch nhẹ tạo tiếng ngân "ong ong"
-  bowl(t, vol = .16, f = 392) {
-    const c = this.ctx, out = c.createGain(); out.gain.value = vol; this._out(out, rand(-.4, .4));
+  bowl(t, vol = .16, f = 392, dest = null) {
+    const c = this.ctx, out = c.createGain(); out.gain.value = vol; if (dest) { out.connect(dest); const w = c.createGain(); w.gain.value = .5; out.connect(w); w.connect(this.rev); } else this._out(out, rand(-.4, .4));
     [[1, 1, 8], [1.0035, .7, 8], [2.71, .34, 5.5], [2.717, .24, 5.5], [5.15, .1, 3], [8.2, .04, 1.6]].forEach(([r, a, d]) => {
       const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f * r;
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + .012); g.gain.exponentialRampToValueAtTime(.0004, t + d);
@@ -1581,10 +1568,17 @@ function disposeChibi(C) {
 // s: sp, pose (idle|pray|sit|strike|chant|sweep|mala|point), leanT, strikeA, sitting, hop, tilt
 function animateChibi(C, dt, t, s) {
   let aLx = 0, aRx = 0, aLz = -.08, aRz = .08, lL = 0, lR = 0, lean = 0;
-  const p = s.pose, swing = Math.sin(C.walkT), moving = s.sp > .4 && p !== 'pray' && p !== 'sit' && p !== 'chant';
+  const p = s.pose, swing = Math.sin(C.walkT), moving = s.sp > .4 && p !== 'pray' && p !== 'sit' && p !== 'chant' && p !== 'kneel' && p !== 'meditate';
   if (moving) { aLx = swing * .75; aRx = -swing * .75; lL = -swing * .85; lR = swing * .85; C.body.position.y = Math.abs(Math.cos(C.walkT)) * (s.hop ? .1 : .05); C.body.rotation.z = swing * .035; }
   else { C.body.position.y = damp(C.body.position.y, Math.sin(t * 1.6 + C.ph) * .008, 8, dt); C.body.rotation.z = damp(C.body.rotation.z, 0, 8, dt); }
   if (p === 'pray' || p === 'sit') { aLx = aRx = -1.32; aLz = .62; aRz = -.62; lean = s.leanT || 0; if (p === 'sit') lL = lR = -1.45; }
+  else if (p === 'kneel') { // quỳ: cẳng chân gập ra sau; cúi sâu thì hai tay chạm đất phía trước
+    lean = s.leanT || 0; lL = lR = 1.5;
+    if (lean > .55) { aLx = aRx = -.95; aLz = .18; aRz = -.18; } else { aLx = aRx = -1.32; aLz = .62; aRz = -.62; }
+  }
+  else if (p === 'meditate') { // ngồi kiết già, hai tay đặt trong lòng, lưng thẳng theo hơi thở
+    const b = s.breath || 0; aLx = aRx = -.5; aLz = .58; aRz = -.58; lL = lR = -1.45; lean = .04 - b * .05;
+  }
   else if (p === 'strike') { aLx = -.9; aLz = .1; aRx = -1.15 - (s.strikeA || 0); aRz = -.08; lean = s.leanT || 0; if (s.sitting) lL = lR = -1.45; }
   else if (p === 'chant') { aLx = -.95; aLz = .55; aRx = -.85 - (s.strikeA || 0); aRz = -.2; lL = lR = -1.45; lean = .06; }
   else if (p === 'sweep') { aLx = -.95; aRx = -.85; aLz = .38; aRz = -.38; lean = .14 + (s.leanT || 0); }
@@ -1597,8 +1591,9 @@ function animateChibi(C, dt, t, s) {
   C.lean = damp(C.lean, lean + (s.tilt || 0), 6, dt); C.body.rotation.x = C.lean;
   // Mắt chớp; chắp tay, ngồi tụng thì nhắm mắt an tĩnh
   C.blinkT -= dt; let eo = 1;
-  if (p === 'pray' || p === 'sit' || p === 'chant') eo = .14;
+  if (p === 'pray' || p === 'sit' || p === 'chant' || p === 'kneel' || p === 'meditate') eo = .14;
   else if (C.blinkT < 0) { eo = .1; if (C.blinkT < -.13) C.blinkT = rand(2.2, 5.5); }
+  const bs = p === 'meditate' ? 1 + (s.breath || 0) * .03 : 1; C.body.scale.x = C.body.scale.z = damp(C.body.scale.x, bs, 6, dt); // ngực phồng khi thở vào
   C.eyes.scale.y = damp(C.eyes.scale.y, eo, 28, dt);
   C.head.rotation.y = dampAngle(C.head.rotation.y, clamp(C.lookY, -.9, .9), 5, dt);
   C.head.rotation.x = damp(C.head.rotation.x, C.nod, 6, dt);
@@ -1608,7 +1603,7 @@ function playerLook() {
   return { ...o, skin: '#f0c9a2', hair: '#2a1d17', hairStyle: HAIR_STYLES[clamp(L.hair | 0, 0, HAIR_STYLES.length - 1)].id, hat: !!L.hat };
 }
 function buildPlayer() {
-  if (Player.group) { scene.remove(Player.group); disposeChibi(Player.chibi); Player.tag = null; World.flyStick = null; }
+  if (Player.group) { scene.remove(Player.group); disposeChibi(Player.chibi); Player.tag = null; Player.mood = null; World.flyStick = null; }
   const C = Player.chibi = buildChibi(playerLook());
   Object.assign(Player, { group: C.group, body: C.body, armL: C.armL, armR: C.armR, legL: C.legL, legR: C.legR, heldEmbers: [] });
   // Bó hương cầm tay: hiện khi thắp hương
@@ -1618,7 +1613,7 @@ function buildPlayer() {
     const s = new THREE.Mesh(stickG, stickM), e = new THREE.Mesh(eG, eM); s.position.set((i - 1) * .055, .4, 0); s.rotation.z = (1 - i) * .05; e.position.set((i - 1) * .08, .875, 0); held.add(s, e); Player.heldEmbers.push(s, e);
   }
   C.group.scale.setScalar(1.05); C.group.position.set(Player.x, Player.y, Player.z); C.group.rotation.y = Player.ry; scene.add(C.group);
-  setNameTag(Store.data.name);
+  setNameTag(Store.data.name); setMoodTag(Store.data.mood || '');
   if (Game.busy) Player.tag.visible = false;
 }
 function setNameTag(name) {
@@ -1661,13 +1656,14 @@ function updatePlayer(dt, t) {
   }
   if (P.faceLock) P.ry = dampAngle(P.ry, P.faceY, 8, dt);
   P.y = damp(P.y, groundY(P.x, P.z), 12, dt);
-  P.group.position.set(P.x, P.y + (P.pose === 'sit' ? -.26 : 0), P.z); P.group.rotation.y = P.ry;
+  P.group.position.set(P.x, P.y + poseDrop(P.pose), P.z); P.group.rotation.y = P.ry;
   // Đầu quay nhìn về chỗ có hoạt động gần nhất; đứng yên thì nhìn quanh
   const C = P.chibi;
   if (!Game.busy && Game.zone) C.lookY = clamp(wrapAngle(Math.atan2(Game.zone.x - P.x, Game.zone.z - P.z) - P.ry), -.9, .9);
   else C.lookY = !Game.busy && sp < .4 ? Math.sin(t * .3) * .35 : 0;
   if (C.hat) C.hat.visible = !inHallArea(P.x, P.z);
-  animateChibi(C, dt, t, { sp, pose: P.pose, leanT: P.leanT, strikeA: P.strikeA, sitting: Game.sitting });
+  animateChibi(C, dt, t, { sp, pose: P.pose, leanT: P.leanT, strikeA: P.strikeA, sitting: Game.sitting, breath: P.breath || 0 });
+  if (P.mood) { P.mood.visible = P.tag.visible; P.mood.position.y = 2.8 + Math.sin(t * 1.6) * .03; } // bong bóng tâm trạng lơ lửng
 }
 Player.strikeA = 0;
 function walkTo(x, z, maxTime = 2.4) { return new Promise(res => { Player.auto = { x, z, left: maxTime, done: res }; }); }
@@ -2130,13 +2126,14 @@ const Net = {
     const tx = clamp(d.x, -27.3, 27.3), tz = clamp(d.z, -27.3, 46);
     if (!g) {
       g = this.slots.find(s => !s.used); if (!g) return; // đã đủ chỗ hiển thị
-      g.used = true; g.x = g.tx = tx; g.z = g.tz = tz; g.y = groundY(tx, tz); g.name = null; g.inc = null; g.bell = null; g.bellAt = 0;
+      g.used = true; g.x = g.tx = tx; g.z = g.tz = tz; g.y = groundY(tx, tz); g.name = null; g.mood = ''; dropSprite(g.moodS); g.moodS = null; g.inc = null; g.bell = null; g.bellAt = 0;
       this.paint(g, p.peer); this.peers.set(p.peer, g);
       if (Game.t - this.t0 > 3) toast(`${this.cleanName(d.n)} vừa vào chùa`);
     }
     g.tx = tx; g.tz = tz; if (typeof d.r === 'number' && isFinite(d.r)) g.tr = d.r;
     g.netPose = d.p === 2 || d.p === 3 || d.p === 5 ? d.p : 0;
     const name = this.cleanName(d.n); if (name !== g.name) { g.name = name; this.setTag(g, name); }
+    const mood = cleanMoodText(d.m), okMood = mood && !hasBadWord(mood) ? mood : ''; if (okMood !== g.mood) { g.mood = okMood; dropSprite(g.moodS); g.moodS = okMood ? moodSprite(okMood) : null; if (g.moodS) scene.add(g.moodS); }
     // Người khác thắp hương: thêm nén vào lư. Lần đầu thấy chỉ ghi mốc, không phát lại chuyện cũ
     if (Number.isInteger(d.i) && d.i >= 0) {
       if (g.inc !== null && d.i > g.inc) { const n = Math.min(3, d.i - g.inc); for (let k = 0; k < n; k++) addStick(rand(0, 6.28), rand(.3, 1)); World.smokeBoost.value = Math.max(World.smokeBoost.value, .5); }
@@ -2167,19 +2164,19 @@ const Net = {
   dropTag(g) { if (g.tag) { scene.remove(g.tag); g.tag.material.map.dispose(); g.tag.material.dispose(); g.tag = null; } },
   remove(id) {
     const g = this.peers.get(id); if (!g) return;
-    this.peers.delete(id); this.dropTag(g); g.used = false; hideGuest(g);
+    this.peers.delete(id); this.dropTag(g); dropSprite(g.moodS); g.moodS = null; g.mood = ''; g.used = false; hideGuest(g);
   },
   renderCount(all) {
     if (all) this.total = 1 + this.peers.size + Math.max(0, all.filter(p => p.kind === 'viewer' && !p.sameTab && p.presence && typeof p.presence.x === 'number').length - this.peers.size);
     if (!this.online) { this.total = 1; $('#netLine').textContent = 'Mất kết nối, đang thử lại…'; return; }
     $('#netLine').textContent = this.total > 1 ? `Có ${this.total} người chơi trong chùa (bảng tên xanh)` : 'Gửi link cho người thân để cùng đi chùa';
   },
-  setTagsVisible(v) { for (const g of this.slots) if (g.tag) g.tag.visible = v; },
+  setTagsVisible(v) { for (const g of this.slots) { if (g.tag) g.tag.visible = v; if (g.moodS) g.moodS.visible = v; } },
   myPose() {
     const P = Player;
     if (P.held.visible) return 5;
-    if (P.pose === 'sit') return 3;
-    if (P.pose === 'pray') return 2;
+    if (P.pose === 'sit' || P.pose === 'meditate') return 3;
+    if (P.pose === 'pray' || P.pose === 'kneel') return 2;
     return 0;
   },
   update(dt, t) {
@@ -2188,8 +2185,8 @@ const Net = {
     this.sendT -= dt;
     if (this.sendT <= 0) {
       this.sendT = .12;
-      const P = Player, x = Math.round(P.x * 100) / 100, z = Math.round(P.z * 100) / 100, r = Math.round(P.ry * 50) / 50, p = this.myPose(), key = `${x}|${z}|${r}|${p}|${this.inc}|${this.bell}|${Store.data.name}`;
-      if (key !== this.last) { this.last = key; this.room.presence({ n: Store.data.name.slice(0, 18), x, z, r, p, i: this.inc, b: this.bell }).catch(() => {}); }
+      const P = Player, x = Math.round(P.x * 100) / 100, z = Math.round(P.z * 100) / 100, r = Math.round(P.ry * 50) / 50, p = this.myPose(), key = `${x}|${z}|${r}|${p}|${this.inc}|${this.bell}|${Store.data.name}|${Store.data.mood || ''}`;
+      if (key !== this.last) { this.last = key; this.room.presence({ n: Store.data.name.slice(0, 18), x, z, r, p, i: this.inc, b: this.bell, m: Store.data.mood || '' }).catch(() => {}); }
     }
     // Vẽ người khác: nội suy mượt về vị trí mới nhất
     for (const g of this.slots) {
@@ -2202,6 +2199,7 @@ const Net = {
       if (moving) g.walk += Math.min(d * 8, 6) * dt * 2.4;
       writeGuest(g, t);
       if (g.tag) g.tag.position.set(g.x, g.y + (g.pose === 3 ? 2 : 2.25), g.z);
+      if (g.moodS) g.moodS.position.set(g.x, g.y + (g.pose === 3 ? 2.5 : 2.75) + Math.sin(t * 1.6 + g.ph) * .03, g.z);
     }
   },
 };
@@ -2217,7 +2215,7 @@ const FAMILY_SAY = { // [0 = bà, 1 = bé, lời]
   tree: [[1, 'Cây bồ đề to quá bà ơi!'], [0, 'Treo một dải lụa cầu cho cả nhà nhé.']],
   bell: [[1, 'Cho con thỉnh chuông với!'], [0, 'Thỉnh chuông nhẹ tay thôi con.']],
   burner: [[0, 'Thắp nén hương cho ông nhé.'], [1, 'Khói hương bay cao quá!']],
-  hall: [[0, 'Vào chính điện nói khẽ thôi con.'], [1, 'Tượng Phật hiền quá bà ơi.'], [0, 'Nam mô A Di Đà Phật.'], [1, 'Thầy kia đang gõ mõ kìa.']],
+  hall: [[0, 'Vào chính điện nói khẽ thôi con.'], [1, 'Tượng Phật hiền quá bà ơi.'], [0, 'Nam mô A Di Đà Phật.'], [1, 'Thầy kia đang ngồi thiền kìa.']],
   gate: [[0, 'Qua cổng tam quan thì đi chậm lại nhé.'], [1, 'Sư tử đá kìa!']],
   monk: [[1, 'Chú tiểu đang quét sân kìa!'], [0, 'Chào thầy đi cháu.']],
   night: [[1, 'Đom đóm kìa bà ơi!'], [0, 'Tối rồi, đèn lồng sáng đẹp quá.']],
@@ -2247,7 +2245,7 @@ function updateFamily(dt, t) {
     if (Game.busy) { // đứng hai bên, hơi lùi sau người chơi
       const fy = P.faceLock ? P.faceY : P.ry, fx = Math.sin(fy), fz = Math.cos(fy), rx = Math.cos(fy), rz = -Math.sin(fy);
       tx = P.x + rx * d.side * 1.25 - fx * .75; tz = P.z + rz * d.side * 1.25 - fz * .75;
-      pose = P.pose === 'sit' || Game.sitting ? 'sit' : P.pose === 'pray' ? 'pray' : 'idle'; face = fy;
+      pose = P.pose === 'kneel' ? 'kneel' : P.pose === 'meditate' ? 'meditate' : P.pose === 'sit' || Game.sitting ? 'sit' : P.pose === 'pray' ? 'pray' : 'idle'; face = fy;
     } else { // điểm trên vệt chân, cách người chơi một khoảng
       let need = d.gap, px = P.x, pz = P.z; tx = px; tz = pz;
       for (let i = tr.length - 1; i >= 0; i--) {
@@ -2270,8 +2268,8 @@ function updateFamily(dt, t) {
     const C = m.C;
     C.lookY = sp < .3 && !Game.busy ? Math.sin(t * (d.hop ? .7 : .3) + k * 2) * (d.hop ? .7 : .4) : 0;
     if (C.hat) C.hat.visible = !inHallArea(m.x, m.z);
-    C.group.position.set(m.x, m.y + (m.pose === 'sit' ? -.26 * d.s : 0), m.z); C.group.rotation.y = m.ry;
-    animateChibi(C, dt, t, { sp, pose: m.pose, leanT: m.pose === 'pray' ? (P.leanT ? .3 : .06) : 0, hop: d.hop, tilt: d.tilt });
+    C.group.position.set(m.x, m.y + poseDrop(m.pose) * d.s, m.z); C.group.rotation.y = m.ry;
+    animateChibi(C, dt, t, { sp, pose: m.pose, leanT: m.pose === 'kneel' ? P.leanT * .9 : m.pose === 'pray' ? (P.leanT ? .3 : .06) : 0, hop: d.hop, tilt: d.tilt, breath: P.breath || 0 });
   });
   familyTalk(dt);
 }
@@ -2301,17 +2299,20 @@ function buildMonks() {
   A.home = Math.PI / 2; A.pose = 'mala'; A.bowT = rand(6, 12); A.nodT = 0; Col.circle(A.x, A.z, .5);
   const N = Monks.novice = makeNpc({ robe: '#8a6040', robeD: '#6b4a30', collar: '#a07a55', belt: '#6b4a30', skin: '#f0c9a2', hair: '#2a1d17', hairStyle: 'tuft', broom: true, pants: '#5a4030' }, 7, 16, 0, .78);
   N.ri = 1; N.state = 'walk'; N.timer = 0; N.greetCD = 0; N.pose = 'sweep';
-  const S = Monks.chanter = makeNpc({ robe: '#c99236', robeD: '#a8762a', collar: '#f2d48a', belt: '#a8762a', sash: '#9a3f22', skin: '#e3b48a', hairStyle: 'bald', pants: '#7a5a2a', mallet: true, brows: '#4a3a2a' }, 0, -18.95, Math.PI, 1);
-  S.pose = 'chant'; S.tock = 0; Col.circle(S.x, S.z, .55);
+  const S = Monks.chanter = makeNpc({ robe: '#c99236', robeD: '#a8762a', collar: '#f2d48a', belt: '#a8762a', sash: '#9a3f22', skin: '#e3b48a', hairStyle: 'bald', pants: '#7a5a2a', brows: '#4a3a2a' }, -2.6, -18.95, Math.PI, 1);
+  S.pose = 'sit'; S.lean = .05; Col.circle(S.x, S.z, .55);
   // Tọa cụ và mõ nhỏ bên phải thầy
   const b = new Batch();
-  b.add(new THREE.CylinderGeometry(.45, .5, .1, 10), '#7d3324', TRS(0, .55, -18.95));
-  b.add(new THREE.CylinderGeometry(.24, .26, .06, 10), '#9c3c28', TRS(-.32, .53, -19.5));
-  b.add(new THREE.SphereGeometry(.19, 12, 10), '#8a4f24', TRS(-.32, .7, -19.5, 0, 1, .82, 1.08), SMOOTH);
+  b.add(new THREE.CylinderGeometry(.45, .5, .1, 10), '#7d3324', TRS(-2.6, .55, -18.95));
+  b.add(new THREE.CylinderGeometry(.24, .26, .06, 10), '#9c3c28', TRS(-2.92, .53, -19.5));
+  b.add(new THREE.SphereGeometry(.19, 12, 10), '#8a4f24', TRS(-2.92, .7, -19.5, 0, 1, .82, 1.08), SMOOTH);
+  // Bồ đoàn chính giữa trước tượng Phật, nơi người chơi quỳ lạy, ngồi thiền
+  b.add(new THREE.CylinderGeometry(.5, .54, .12, 14), '#a5301f', TRS(ALTAR_SPOT.x, .56, ALTAR_SPOT.z), SMOOTH);
+  b.add(new THREE.TorusGeometry(.47, .035, 6, 20), '#e9b44c', TRS(ALTAR_SPOT.x, .62, ALTAR_SPOT.z, 0, 1, 1, 1, Math.PI / 2), SMOOTH);
   const m = new THREE.Mesh(b.geometry(), chibiMat()); scene.add(m);
 }
 function placeNpc(n, dt, t, sp) {
-  n.C.group.position.set(n.x, n.y + (n.pose === 'sit' || n.pose === 'chant' ? -.26 * n.s : 0), n.z); n.C.group.rotation.y = n.ry;
+  n.C.group.position.set(n.x, n.y + poseDrop(n.pose) * n.s, n.z); n.C.group.rotation.y = n.ry;
   animateChibi(n.C, dt, t, { sp, pose: n.pose, leanT: n.lean, strikeA: n.strikeA });
 }
 function updateMonks(dt, t) {
@@ -2346,11 +2347,8 @@ function updateMonks(dt, t) {
   N.C.broom.rotation.y = N.state === 'greet' ? damp(N.C.broom.rotation.y, 0, 6, dt) : Math.sin(t * 2.4) * .5;
   N.C.lookY = N.state === 'greet' ? 0 : Math.sin(t * 2.4) * .2;
   placeNpc(N, dt, t, sp);
-  // Thầy ngồi tụng: gõ mõ đúng lúc tiếng mõ nền vang lên
-  const c = Snd.ctx;
-  if (c && c.state === 'running') { const now = c.currentTime; while (Snd.tockQ.length && Snd.tockQ[0] <= now) { Snd.tockQ.shift(); S.strikeA = .45; } }
-  else { S.tock -= dt; if (S.tock <= 0) { S.tock = .56; S.strikeA = .45; } }
-  S.strikeA = damp(S.strikeA, 0, 10, dt);
+  // Thầy ngồi thiền trước ban thờ
+  S.lean = .05 + Math.max(0, Math.sin(t * .4)) ** 4 * .12; // thỉnh thoảng cúi nhẹ
   placeNpc(S, dt, t, 0);
 }
 // Khách trong sân nghe chuông thì dừng lại chắp tay hướng về gác chuông
@@ -2413,6 +2411,137 @@ async function actMonk() {
   show();
 }
 
+
+/* ===== TÂM TRẠNG: gõ vài chữ, hiện bong bóng trên đầu nhân vật; xoá chữ đi là tắt. Người cùng vào qua link cũng thấy ===== */
+const MOOD_MAX = 40;
+const MOOD_IDEAS = ['😊 Bình an', '🙏 Biết ơn', '🌸 Vui vẻ', '😌 Thảnh thơi', '🍀 Mong may mắn', '😴 Hơi mệt'];
+const cleanMoodText = v => Array.from((typeof v === 'string' ? v : '').replace(/[\p{Cc}\p{Co}\p{Cn}\u202A-\u202E\u2066-\u2069]/gu, '').replace(/\s+/g, ' ').trim()).slice(0, MOOD_MAX).join('').trim();
+function moodSprite(text) {
+  const tex = canvasTex(640, 150, (c, w, h) => {
+    const font = n => `600 ${n}px -apple-system,"Segoe UI",Roboto,Arial,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    let size = 46; c.font = font(size); while (c.measureText(text).width > w - 70 && size > 22) { size -= 2; c.font = font(size); }
+    const tw = Math.min(w - 16, c.measureText(text).width + 56), x0 = (w - tw) / 2, bh = h - 42, cx = w / 2;
+    c.fillStyle = 'rgba(255,248,232,.97)'; c.strokeStyle = '#e9b44c'; c.lineWidth = 4;
+    c.beginPath(); c.roundRect(x0, 6, tw, bh, 30); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(cx - 16, 6 + bh - 2); c.lineTo(cx, h - 8); c.lineTo(cx + 16, 6 + bh - 2); c.closePath(); c.fill(); // đuôi bong bóng
+    c.beginPath(); c.moveTo(cx - 16, 6 + bh); c.lineTo(cx, h - 8); c.lineTo(cx + 16, 6 + bh); c.stroke();
+    c.fillRect(cx - 14, 6 + bh - 5, 28, 7);
+    c.fillStyle = '#33201a'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, cx, 6 + bh / 2 + 2);
+  });
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+  sp.scale.set(2.6, .61, 1); sp.renderOrder = 5; return sp;
+}
+function dropSprite(sp) { if (sp) { sp.parent?.remove(sp); sp.material.map.dispose(); sp.material.dispose(); } }
+function setMoodTag(text) {
+  if (!Player.group) return;
+  dropSprite(Player.mood); Player.mood = null;
+  if (!text) return;
+  const sp = Player.mood = moodSprite(text); sp.position.y = 2.8; sp.visible = Player.tag ? Player.tag.visible : true; Player.group.add(sp);
+}
+function setMood(text) {
+  Store.data.mood = text; Store.save();
+  if (THREE) setMoodTag(text);
+  renderMoodBtn();
+}
+function renderMoodBtn() {
+  const b = $('#moodBtn'), m = Store.data.mood || '';
+  b.querySelector('span').textContent = m || 'Tâm trạng'; b.classList.toggle('on', !!m);
+  b.setAttribute('aria-label', m ? `Tâm trạng: ${m}. Chạm để sửa hoặc xoá` : 'Gõ tâm trạng');
+}
+function openMood() {
+  const cur = Store.data.mood || '';
+  openSheet(`<h2 class="sheet-title">Tâm trạng của bạn</h2>
+    <p class="sheet-sub">Gõ vài chữ, tâm trạng sẽ hiện trên đầu nhân vật. Xoá chữ đi là tắt. Người cùng vào chùa qua link cũng thấy.</p>
+    <div class="chips" id="moodIdeas">${MOOD_IDEAS.map((m, i) => `<button data-i="${i}">${m}</button>`).join('')}</div>
+    <input id="moodText" maxlength="60" autocomplete="off" enterkeyhint="done" placeholder="Hôm nay bạn thấy thế nào?" aria-label="Tâm trạng, tối đa ${MOOD_MAX} ký tự" value="${escapeHtml(cur)}">
+    <div class="count"><span id="moodCount">${Array.from(cur).length}</span>/${MOOD_MAX}</div>
+    <p class="warn hide" id="moodWarn"></p>
+    <div class="row"><button class="btn" id="moodClear">Xoá tâm trạng</button><button class="btn main" id="moodGo">Hiện lên</button></div>
+    <button class="btn ghost wide" id="moodClose" style="margin-top:6px">Đóng</button>`);
+  const inp = $('#moodText'), warn = $('#moodWarn');
+  const count = () => { $('#moodCount').textContent = Math.min(MOOD_MAX, Array.from(inp.value).length); };
+  const go = () => {
+    const t = cleanMoodText(inp.value);
+    if (!t) { setMood(''); closeSheet(); toast('Đã tắt tâm trạng', 1800); return; }
+    if (hasBadWord(t)) { warn.textContent = 'Tâm trạng có từ chưa phù hợp nơi cửa chùa. Bạn viết nhẹ nhàng hơn nhé.'; warn.classList.remove('hide'); inp.focus(); return; }
+    inp.blur(); setMood(t); closeSheet(); toast('Tâm trạng đã hiện trên đầu nhân vật', 1800);
+  };
+  inp.oninput = () => {
+    count(); warn.classList.add('hide');
+    if (!inp.value.trim() && Store.data.mood) setMood(''); // xoá hết chữ thì tắt ngay
+  };
+  inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
+  $('#moodIdeas').onclick = e => { const i = e.target.dataset?.i; if (i !== undefined) { inp.value = MOOD_IDEAS[+i]; count(); go(); } };
+  $('#moodGo').onclick = go;
+  $('#moodClear').onclick = () => { inp.value = ''; setMood(''); closeSheet(); toast('Đã tắt tâm trạng', 1800); };
+  $('#moodClose').onclick = () => { inp.blur(); closeSheet(); };
+  if (!cur && matchMedia('(pointer:fine)').matches) inp.focus();
+}
+
+
+/* ===== HOẠT ĐỘNG 7: LỄ PHẬT – quỳ ba lạy hoặc ngồi thiền theo hơi thở trên bồ đoàn trước tượng Phật ===== */
+const ALTAR_SPOT = { x: 0, z: -18.75 };
+function zenBell(vol = .3, f = 392) { if (Snd.ctx && Snd.ctx.state === 'running') Snd.bowl(Snd.ctx.currentTime + .02, vol, f, Snd.master); }
+const fmtTime = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function actBuddha() {
+  beginActivity();
+  focusOn(0, 1.9, -19.3, .42, .2, 6.6); // điểm nhìn phải ở ngoài khối ban thờ, nếu không máy quay bị kéo sát lại
+  openSheet(`<h2 class="sheet-title">Lễ Phật</h2><p class="sheet-sub">Bạn muốn quỳ lạy hay ngồi thiền trước tượng Phật?</p>
+    <div class="choice"><button id="kKneel">Quỳ lạy<small>Ba lạy thành kính</small></button><button id="kSit">Ngồi thiền<small>Theo hơi thở, lắng lòng</small></button></div>
+    <button class="btn ghost wide" id="cancelBtn">Để sau</button>`);
+  $('#kKneel').onclick = doKneel; $('#kSit').onclick = doMeditate; $('#cancelBtn').onclick = endActivity;
+}
+async function goAltar() {
+  closeSheet(); const id = Game.actId;
+  await walkTo(ALTAR_SPOT.x, ALTAR_SPOT.z, 3); if (id !== Game.actId) return false;
+  Player.x = ALTAR_SPOT.x; Player.z = ALTAR_SPOT.z; faceTo(0, -24.3); await wait(350);
+  return id === Game.actId;
+}
+async function doKneel() {
+  if (!await goAltar()) return;
+  const id = Game.actId, P = Player;
+  P.pose = 'kneel'; P.leanT = 0; caption('Quỳ xuống, chắp tay trước ngực', 1800); await wait(1600);
+  for (let i = 1; i <= 3; i++) {
+    if (id !== Game.actId) return;
+    caption(`Lạy thứ ${i}`, 2200); zenBell(.28);
+    P.leanT = 1.05; await wait(1500); if (id !== Game.actId) return;
+    P.leanT = 0; await wait(1300);
+  }
+  if (id !== Game.actId) return;
+  Store.data.bows = (Store.data.bows || 0) + 1; Store.save();
+  caption('');
+  openSheet(`<h2 class="sheet-title">Đã lễ Phật</h2><p class="praise">Ba lạy thành kính. Mong lòng bạn nhẹ nhàng, an vui.</p>
+    <p class="small" style="text-align:center;margin:-6px 0 12px">Bạn đã lễ Phật ${Store.data.bows} lần.</p>${resultButtons('againBtn', 'Ngồi thiền thêm')}`);
+  $('#doneBtn').onclick = endActivity; $('#againBtn').onclick = () => { closeSheet(); startMeditate(); };
+}
+async function doMeditate() { if (await goAltar()) startMeditate(); }
+function startMeditate() {
+  const P = Player, st = { t: 0, breaths: 0, last: -1, bell: 0 };
+  P.pose = 'meditate'; P.leanT = 0; Game.sitting = true; P.breath = 0;
+  focusOn(0, .7, -18.9, .5, .62, 5.2); // nhìn chéo từ trên cao để không ai che ai
+  zenBell(.3);
+  openSheet(`<h2 class="sheet-title">Ngồi thiền</h2><p class="praise" id="breath" style="margin:2px 0 4px">Thở vào…</p>
+    <p class="small" id="medTime" style="text-align:center;margin:0 0 12px">0:00 · 0 hơi thở</p><button class="btn main wide" id="standBtn">Xả thiền, đứng dậy</button>`);
+  Game.update = dt => {
+    st.t += dt; const ph = st.t % 10 / 10, inhale = ph < .5; // 5 giây thở vào, 5 giây thở ra
+    P.breath = .5 - .5 * Math.cos(ph * Math.PI * 2);
+    const cyc = Math.floor(st.t / 10); if (cyc !== st.last) { st.last = cyc; st.breaths = cyc; }
+    const el = $('#breath'); if (el) { el.textContent = inhale ? 'Thở vào… biết mình đang thở vào' : 'Thở ra… mỉm cười'; $('#medTime').textContent = `${fmtTime(st.t)} · ${st.breaths} hơi thở`; }
+    if (Math.floor(st.t / 60) > st.bell) { st.bell++; zenBell(.24); } // mỗi phút một tiếng chuông nhắc
+  };
+  $('#standBtn').onclick = () => finishMeditate(st);
+}
+function finishMeditate(st) {
+  Game.update = null; Player.breath = 0;
+  const secs = Math.floor(st.t); Store.data.zen = (Store.data.zen || 0) + secs; Store.save();
+  zenBell(.3);
+  const msg = secs >= 300 ? 'Một khoảng lặng dài và sâu. Lòng bạn như mặt hồ không gợn sóng.' : secs >= 60 ? 'Vài phút ngồi yên, hơi thở đã chậm và êm hơn.' : 'Dù chỉ một lát, bạn đã cho mình một khoảng dừng thật đẹp.';
+  openSheet(`<h2 class="sheet-title">Xả thiền</h2><p class="praise">${msg}</p>
+    <div class="tally"><span>Lần này: <b>${fmtTime(secs)}</b></span><span>Hơi thở: <b>${st.breaths}</b></span><span>Tổng: <b>${fmtTime(Store.data.zen)}</b></span></div>
+    ${resultButtons('againBtn', 'Ngồi tiếp')}`);
+  $('#doneBtn').onclick = endActivity; $('#againBtn').onclick = () => { closeSheet(); startMeditate(); };
+}
+
 /* ===== HOẠT ĐỘNG: khung chung (bảng trượt, chú thích, lớp trò nhịp) ===== */
 const Game = { t: 0, busy: false, started: false, zone: null, zones: [], visitors: 0, sitting: false, tweens: [], update: null, actId: 0 };
 function beginActivity() {
@@ -2422,7 +2551,7 @@ function beginActivity() {
 }
 function endActivity() {
   Game.busy = false; document.body.classList.remove('busy'); Game.update = null; Game.sitting = false;
-  Game.actId++; Player.auto = null; Player.tag.visible = true; World.striker.rotation.z = 0; World.mallet.rotation.x = 0;
+  Game.actId++; Player.auto = null; Player.breath = 0; Player.tag.visible = true; World.striker.rotation.z = 0; World.mallet.rotation.x = 0;
   Cam.focus = null; Player.pose = 'idle'; Player.faceLock = false; Player.leanT = 0; Player.strikeA = 0; Player.held.visible = false;
   Rhythm.stop(); closeSheet(); caption('');
   if (Monks.abbot) { Monks.abbot.busy = false; Monks.abbot.pose = 'mala'; Monks.abbot.lean = 0; }
@@ -2787,7 +2916,7 @@ function captureScene(ctx, W, H) {
   shot.aspect = W / H; shot.position.set(0, 3.2, 33); shot.lookAt(0, 4.2, -14); shot.updateProjectionMatrix();
   const saved = { x: Player.group.position.x, y: Player.group.position.y, z: Player.group.position.z, ry: Player.group.rotation.y };
   const markers = Game.zones.map(z => z.sprite.visible); Game.zones.forEach(z => { z.sprite.visible = false; });
-  Player.tag.visible = false; Net.setTagsVisible(false);
+  Player.tag.visible = false; if (Player.mood) Player.mood.visible = false; Net.setTagsVisible(false);
   Player.group.position.set(0, 0, 24); Player.group.rotation.y = Math.PI;
   const famSaved = Family.list.map(m => { const g = m.C.group, s = [g.position.x, g.position.y, g.position.z, g.rotation.y]; g.position.set(m.d.side * 1.25, 0, 24.7); g.rotation.y = Math.PI; return s; });
   const uS = U.uScale.value, uP = U.uPR.value; U.uScale.value = H / 800; U.uPR.value = 1;
@@ -2856,6 +2985,8 @@ function closeShare() {
   if (Share.url) URL.revokeObjectURL(Share.url); Share.url = Share.blob = Share.file = null;
 }
 function bindPages() {
+  $('#moodBtn').onclick = () => { if (!Game.busy) openMood(); };
+  renderMoodBtn();
   $('#muteBtn').onclick = () => { Snd.init(); Snd.setMuted(!Snd.muted); renderMute(); };
   $('#musicBtn').onclick = () => { Snd.init(); Snd.setMusic(!Snd.musicOn); renderMusic(); toast(Snd.musicOn ? 'Đã bật nhạc thiền' : 'Đã tắt nhạc thiền', 1800); };
   $('#bookBtn').onclick = () => { renderBook(); $('#book').classList.remove('hide'); };
@@ -2893,7 +3024,7 @@ const TUT = () => {
   const touch = matchMedia('(pointer:coarse)').matches || innerWidth < 820;
   return [
     { t: 'Đi lại', d: touch ? 'Dùng cần điều khiển ở góc trái để đi. Kéo vào chỗ trống trên màn để xoay góc nhìn.' : 'Dùng phím W A S D hoặc phím mũi tên để đi. Kéo chuột để xoay góc nhìn.', a: '<svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="#f6e6cb" stroke="#b8862c" stroke-width="3"/><circle cx="60" cy="38" r="17" fill="#a5301f"/><path d="M48 14l-6 8h12zM48 82l-6-8h12zM14 48l8-6v12zM82 48l-8-6v12z" fill="#b8862c"/></svg>' },
-    { t: 'Tới gần', d: 'Những biển tên vàng chỉ chỗ có hoạt động: thắp hương, thỉnh chuông, gõ mõ, viết lời cầu, xin quẻ, hỏi chuyện Thầy. Hãy đi tới gần.', a: '<svg viewBox="0 0 96 96"><ellipse cx="48" cy="72" rx="36" ry="13" fill="none" stroke="#e9b44c" stroke-width="4"/><rect x="18" y="12" width="60" height="22" rx="10" fill="#3c1814" stroke="#e9b44c" stroke-width="2"/><rect x="30" y="20" width="36" height="6" rx="3" fill="#ffe6a8"/><circle cx="48" cy="52" r="10" fill="#f0c9a2"/><path d="M38 76c0-12 4-16 10-16s10 4 10 16z" fill="#5f7fa8"/></svg>' },
+    { t: 'Tới gần', d: 'Những biển tên vàng chỉ chỗ có hoạt động: thắp hương, thỉnh chuông, gõ mõ, viết lời cầu, xin quẻ, lễ Phật, hỏi chuyện Thầy. Hãy đi tới gần.', a: '<svg viewBox="0 0 96 96"><ellipse cx="48" cy="72" rx="36" ry="13" fill="none" stroke="#e9b44c" stroke-width="4"/><rect x="18" y="12" width="60" height="22" rx="10" fill="#3c1814" stroke="#e9b44c" stroke-width="2"/><rect x="30" y="20" width="36" height="6" rx="3" fill="#ffe6a8"/><circle cx="48" cy="52" r="10" fill="#f0c9a2"/><path d="M38 76c0-12 4-16 10-16s10 4 10 16z" fill="#5f7fa8"/></svg>' },
     { t: 'Chạm nút hành động', d: 'Tới gần thì nút đỏ lớn sẽ hiện ra. Chạm một lần là làm. Chúc bạn một buổi lên chùa thật an.', a: '<svg viewBox="0 0 96 96"><rect x="12" y="28" width="72" height="40" rx="14" fill="#a5301f" stroke="#e9b44c" stroke-width="4"/><rect x="26" y="44" width="44" height="7" rx="3.5" fill="#fff3dc"/></svg>' },
   ];
 };
@@ -2916,6 +3047,7 @@ function buildZones() {
     { id: 'que', label: 'Xin quẻ', act: 'Xin quẻ', x: -9.5, z: -15.2, r: 3, my: 3.5, ring: 1.3, fn: actFortune },
     { id: 'ribbon', label: 'Treo dải lụa', act: 'Viết lời cầu an', x: 15.6, z: 18, r: 7, my: 3.6, ring: 1.5, rx: 14.2, rz: 17, fn: () => actPrayer('ribbon') },
     { id: 'pond', label: 'Thả hoa đăng', act: 'Viết lời cầu an', x: -19, z: -1, r: 8.9, my: 2.4, ring: 1.5, rx: -12.2, rz: 5.2, fn: () => actPrayer('lantern') },
+    { id: 'phat', label: 'Lễ Phật', act: 'Lễ Phật', x: 0, z: -17.1, r: 2.4, my: 4.1, ring: .9, rx: ALTAR_SPOT.x, rz: ALTAR_SPOT.z, fn: actBuddha },
     { id: 'thay', label: 'Hỏi chuyện Thầy', act: 'Thưa chuyện Thầy', x: -6.6, z: 27, r: 2.8, my: 3.7, ring: 1.1, rx: -6.25, rz: 27, fn: actMonk },
   ];
   Game.zones.forEach(makeMarker); buildZoneRings(Game.zones);
