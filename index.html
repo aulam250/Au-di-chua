@@ -149,6 +149,14 @@ textarea{width:100%;height:96px;resize:none;border-radius:14px;border:2px solid 
 .card .no{color:var(--red);font-weight:700;font-size:14px;letter-spacing:.06em}
 .card p{font-family:var(--serif);font-size:20px;line-height:1.45;margin:9px 0 10px}
 #holdBtn{touch-action:none;-webkit-touch-callout:none}
+/* Chụp ảnh: chớp đèn, đếm ngược, ảnh in xem trước */
+#flash{position:fixed;inset:0;z-index:36;background:#fff;opacity:0;pointer-events:none}
+#flash.on{animation:flash .7s ease-out}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+#cd{position:fixed;left:50%;top:30%;z-index:26;transform:translate(-50%,-50%);font-family:var(--serif);font-weight:700;font-size:clamp(46px,14vw,96px);color:#fff3dc;text-shadow:0 3px 18px rgba(0,0,0,.65);pointer-events:none;opacity:0;white-space:nowrap}
+#cd.on{animation:cdpop .8s ease-out}
+@keyframes cdpop{0%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}20%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0}}
+.photo-prev{display:block;max-width:100%;max-height:44vh;margin:0 auto 10px;border-radius:6px;box-shadow:0 3px 14px rgba(0,0,0,.3)}
 
 /* Lớp trò nhịp (chuông, mõ) */
 #rhythm{position:fixed;inset:0;z-index:25;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:calc(62px + var(--sat)) 16px calc(26px + var(--sab));touch-action:none;cursor:pointer;
@@ -239,6 +247,8 @@ textarea{width:100%;height:96px;resize:none;border-radius:14px;border:2px solid 
 </div>
 
 <div id="sheet"><div id="sheetBody"></div></div>
+<div id="flash"></div>
+<div id="cd" aria-live="assertive"></div>
 
 <div id="rhythm" class="hide">
   <div id="rTop"></div>
@@ -327,13 +337,17 @@ const OUTFITS = [
 const HAIR_STYLES = [{ id: 'bun', n: 'Tóc búi' }, { id: 'long', n: 'Tóc dài' }, { id: 'pony', n: 'Đuôi ngựa' }, { id: 'short', n: 'Tóc ngắn' }];
 function renderLookPicker(host, onChange) {
   const L = Store.data.look; L.outfit = clamp(L.outfit | 0, 0, OUTFITS.length - 1); L.hair = clamp(L.hair | 0, 0, HAIR_STYLES.length - 1);
-  host.innerHTML = `<div class="looks">
+  const od = Store.data.ordain;
+  host.innerHTML = od ? `<div class="looks"><div class="lname">Đang xuất gia · pháp danh <b>${escapeHtml(od.name)}</b></div>
+    <div class="lrow"><button class="hc" data-disrobe="1">Hoàn tục (để tóc lại)</button></div>
+    <label class="fam"><input type="checkbox" data-fam${Store.data.family !== false ? ' checked' : ''}> Đi cùng bà và bé</label></div>` : `<div class="looks">
     <div class="lrow" role="radiogroup" aria-label="Trang phục">${OUTFITS.map((o, i) => `<button class="sw${i === L.outfit ? ' sel' : ''}" data-o="${i}" role="radio" aria-checked="${i === L.outfit}" aria-label="${o.n}" style="background:linear-gradient(180deg,${o.robe} 0 62%,${o.dai ? o.collar : o.robeD} 62%)"></button>`).join('')}</div>
     <div class="lname">${OUTFITS[L.outfit].n}</div>
     <div class="lrow" role="radiogroup" aria-label="Kiểu tóc">${HAIR_STYLES.map((h, i) => `<button class="hc${i === L.hair ? ' sel' : ''}" data-h="${i}" role="radio" aria-checked="${i === L.hair}">${h.n}</button>`).join('')}<button class="hc${L.hat ? ' sel' : ''}" data-hat="1" aria-pressed="${!!L.hat}">Nón lá</button></div>
     <label class="fam"><input type="checkbox" data-fam${Store.data.family !== false ? ' checked' : ''}> Đi cùng bà và bé</label></div>`;
   host.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.disrobe) { disrobe(); renderLookPicker(host, onChange); toast('Đã hoàn tục, tóc mọc lại rồi', 2200); return; }
     if (b.dataset.o) L.outfit = +b.dataset.o; else if (b.dataset.h) L.hair = +b.dataset.h; else if (b.dataset.hat) L.hat = !L.hat; else return;
     Store.save(); renderLookPicker(host, onChange); onChange?.('look');
   };
@@ -491,6 +505,27 @@ const Snd = {
       const o = c.createOscillator(), g = c.createGain(), s = t + i * .13; o.frequency.value = f; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(vol, s + .02); g.gain.exponentialRampToValueAtTime(.001, s + 1.5);
       o.connect(g); g.connect(this.master); const w = c.createGain(); w.gain.value = .4; g.connect(w); w.connect(this.rev); o.start(s); o.stop(s + 1.6);
     });
+  },
+  shutter() { // màn trập máy ảnh: hai tiếng tách
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + .005;
+    [[0, 3200, .55], [.075, 1700, .45]].forEach(([d, f, v]) => {
+      const n = this.noiseSrc(), b = c.createBiquadFilter(), g = c.createGain(); b.type = 'bandpass'; b.frequency.value = f; b.Q.value = 1.4;
+      g.gain.setValueAtTime(v, t + d); g.gain.exponentialRampToValueAtTime(.001, t + d + .045); n.connect(b); b.connect(g); g.connect(this.master); n.start(t + d, Math.random() * 2); n.stop(t + d + .06);
+    });
+  },
+  beep(f = 880, vol = .1, dur = .12) { // tiếng bíp đếm ngược
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.001, t + dur); o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + .02);
+  },
+  shave(dur = 1.2) { // dao cạo lướt trên tóc: chuỗi hạt nhiễu cao tần sột soạt
+    if (!this.ctx) return;
+    const c = this.ctx, t0 = c.currentTime + .01, out = c.createGain(); out.gain.value = .6; out.connect(this.master);
+    const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = .9; bp.frequency.setValueAtTime(4200, t0); bp.frequency.linearRampToValueAtTime(6400, t0 + dur); bp.connect(out);
+    const n = this.noiseSrc(), g = c.createGain(); g.gain.setValueAtTime(0, t0); n.connect(g); g.connect(bp);
+    for (let t = t0; t < t0 + dur;) { const a = .08 + rand(.2, .6) * Math.sin(Math.PI * (t - t0) / dur); g.gain.setValueAtTime(.002, t); g.gain.linearRampToValueAtTime(a, t + .006); g.gain.exponentialRampToValueAtTime(.002, t + .03); t += rand(.022, .04); }
+    n.start(t0, Math.random()); n.stop(t0 + dur + .05);
   },
   /* ----- NHẠC THIỀN: đàn tranh (dây gảy Karplus-Strong, có nhấn và rung), sáo trúc, bát chuông, tiếng ngân nền.
      Ngũ cung Sol (G A C D E), cùng gốc 98 Hz với giọng tụng và chuông. Câu nhạc sinh ngẫu nhiên nên không lặp. ----- */
@@ -1443,7 +1478,7 @@ function buildZoneRings(zones) {
     fragmentShader: `varying float vA; void main(){ gl_FragColor=vec4(vec3(1.,.82,.42)*vA,vA); }` });
   const im = new THREE.InstancedMesh(g, m, zones.length);
   zones.forEach((z, i) => { const y = groundY(z.x, z.z) + .05; im.setMatrixAt(i, TRS(z.rx ?? z.x, y, z.rz ?? z.z, 0, z.ring, 1, z.ring)); });
-  im.frustumCulled = false; scene.add(im);
+  im.frustumCulled = false; scene.add(im); World.zoneRings = im;
 }
 function buildActivityProps(W) {
   // Bàn mõ và tọa cụ (bên phải trong điện)
@@ -1584,6 +1619,9 @@ function animateChibi(C, dt, t, s) {
   else if (p === 'sweep') { aLx = -.95; aRx = -.85; aLz = .38; aRz = -.38; lean = .14 + (s.leanT || 0); }
   else if (p === 'mala') { aLx = -.15; aRx = -1.1 + Math.sin(t * 2.2) * .06; aRz = -.42; }
   else if (p === 'point') { aRx = -1.55; aLx = -.25; lean = .22; }
+  else if (p === 'wave') { aRz = 2.45 + Math.sin(t * 9) * .3; aRx = -.25; aLx = -.1; } // vẫy tay
+  else if (p === 'cheer') { const w = Math.sin(t * 6) * .1; aLz = -2.5 - w; aRz = 2.5 + w; aLx = aRx = -.2; } // giơ hai tay
+  else if (p === 'shave') { aLx = -1.9; aLz = .3; aRx = -2.05 - (s.strikeA || 0); aRz = -.3; lean = s.leanT || .1; } // Thầy cạo tóc
   const k = 14;
   C.armL.rotation.x = damp(C.armL.rotation.x, aLx, k, dt); C.armR.rotation.x = damp(C.armR.rotation.x, aRx, k, dt);
   C.armL.rotation.z = damp(C.armL.rotation.z, aLz, k, dt); C.armR.rotation.z = damp(C.armR.rotation.z, aRz, k, dt);
@@ -1598,9 +1636,17 @@ function animateChibi(C, dt, t, s) {
   C.head.rotation.y = dampAngle(C.head.rotation.y, clamp(C.lookY, -.9, .9), 5, dt);
   C.head.rotation.x = damp(C.head.rotation.x, C.nod, 6, dt);
 }
+const ORDAIN_LOOK = { // áo tràng khi xuất gia
+  tang: { robe: '#7d5636', robeD: '#62422a', collar: '#8f6844', belt: '#62422a', pants: '#5a4030' },
+  ni: { robe: '#77838c', robeD: '#5c6770', collar: '#8c98a1', belt: '#5c6770', pants: '#535d65' },
+};
+const displayName = () => Store.data.ordain?.name || Store.data.name;
 function playerLook() {
-  const L = Store.data.look, o = OUTFITS[clamp(L.outfit | 0, 0, OUTFITS.length - 1)];
-  return { ...o, skin: '#f0c9a2', hair: '#2a1d17', hairStyle: HAIR_STYLES[clamp(L.hair | 0, 0, HAIR_STYLES.length - 1)].id, hat: !!L.hat };
+  const L = Store.data.look, o = OUTFITS[clamp(L.outfit | 0, 0, OUTFITS.length - 1)], od = Store.data.ordain;
+  const look = { ...o, skin: '#f0c9a2', hair: '#2a1d17', hairStyle: HAIR_STYLES[clamp(L.hair | 0, 0, HAIR_STYLES.length - 1)].id, hat: !!L.hat };
+  if (od) Object.assign(look, ORDAIN_LOOK[od.kind] || ORDAIN_LOOK.tang, { dai: false, hairStyle: 'bald', hat: false, mala: true });
+  if (Player.lookOv) Object.assign(look, Player.lookOv); // đang cạo dở
+  return look;
 }
 function buildPlayer() {
   if (Player.group) { scene.remove(Player.group); disposeChibi(Player.chibi); Player.tag = null; Player.mood = null; World.flyStick = null; }
@@ -1613,7 +1659,7 @@ function buildPlayer() {
     const s = new THREE.Mesh(stickG, stickM), e = new THREE.Mesh(eG, eM); s.position.set((i - 1) * .055, .4, 0); s.rotation.z = (1 - i) * .05; e.position.set((i - 1) * .08, .875, 0); held.add(s, e); Player.heldEmbers.push(s, e);
   }
   C.group.scale.setScalar(1.05); C.group.position.set(Player.x, Player.y, Player.z); C.group.rotation.y = Player.ry; scene.add(C.group);
-  setNameTag(Store.data.name); setMoodTag(Store.data.mood || '');
+  setNameTag(displayName()); setMoodTag(Store.data.mood || '');
   if (Game.busy) Player.tag.visible = false;
 }
 function setNameTag(name) {
@@ -2185,8 +2231,8 @@ const Net = {
     this.sendT -= dt;
     if (this.sendT <= 0) {
       this.sendT = .12;
-      const P = Player, x = Math.round(P.x * 100) / 100, z = Math.round(P.z * 100) / 100, r = Math.round(P.ry * 50) / 50, p = this.myPose(), key = `${x}|${z}|${r}|${p}|${this.inc}|${this.bell}|${Store.data.name}|${Store.data.mood || ''}`;
-      if (key !== this.last) { this.last = key; this.room.presence({ n: Store.data.name.slice(0, 18), x, z, r, p, i: this.inc, b: this.bell, m: Store.data.mood || '' }).catch(() => {}); }
+      const P = Player, x = Math.round(P.x * 100) / 100, z = Math.round(P.z * 100) / 100, r = Math.round(P.ry * 50) / 50, p = this.myPose(), key = `${x}|${z}|${r}|${p}|${this.inc}|${this.bell}|${displayName()}|${Store.data.mood || ''}`;
+      if (key !== this.last) { this.last = key; this.room.presence({ n: displayName().slice(0, 18), x, z, r, p, i: this.inc, b: this.bell, m: Store.data.mood || '' }).catch(() => {}); }
     }
     // Vẽ người khác: nội suy mượt về vị trí mới nhất
     for (const g of this.slots) {
@@ -2219,6 +2265,7 @@ const FAMILY_SAY = { // [0 = bà, 1 = bé, lời]
   gate: [[0, 'Qua cổng tam quan thì đi chậm lại nhé.'], [1, 'Sư tử đá kìa!']],
   monk: [[1, 'Chú tiểu đang quét sân kìa!'], [0, 'Chào thầy đi cháu.']],
   night: [[1, 'Đom đóm kìa bà ơi!'], [0, 'Tối rồi, đèn lồng sáng đẹp quá.']],
+  tu: [[1, 'Đầu trọc có mát không ạ?'], [0, 'Tu cho tốt nhé con.'], [1, 'Con phải gọi là sư rồi hả?'], [0, 'Nhìn hiền hẳn ra.']],
   any: [[0, 'Đi chậm thôi cháu ơi.'], [1, 'Bà ơi đợi con với!'], [0, 'Chùa mát quá.'], [1, 'Con khát nước quá.'], [0, 'Lâu lắm mới lên chùa cả nhà.'], [1, 'Mai mình lại đi chùa nữa nha!']],
 };
 function buildFamily() {
@@ -2244,8 +2291,8 @@ function updateFamily(dt, t) {
     const d = m.d; let tx, tz, pose = 'idle', face = null;
     if (Game.busy) { // đứng hai bên, hơi lùi sau người chơi
       const fy = P.faceLock ? P.faceY : P.ry, fx = Math.sin(fy), fz = Math.cos(fy), rx = Math.cos(fy), rz = -Math.sin(fy);
-      tx = P.x + rx * d.side * 1.25 - fx * .75; tz = P.z + rz * d.side * 1.25 - fz * .75;
-      pose = P.pose === 'kneel' ? 'kneel' : P.pose === 'meditate' ? 'meditate' : P.pose === 'sit' || Game.sitting ? 'sit' : P.pose === 'pray' ? 'pray' : 'idle'; face = fy;
+      const back = .75 + (Game.famBack || 0); tx = P.x + rx * d.side * 1.25 - fx * back; tz = P.z + rz * d.side * 1.25 - fz * back;
+      pose = Game.famPose ? Game.famPose : P.pose === 'wave' || P.pose === 'cheer' ? (k ? 'cheer' : 'wave') : P.pose === 'kneel' ? 'kneel' : P.pose === 'meditate' ? 'meditate' : P.pose === 'sit' || Game.sitting ? 'sit' : P.pose === 'pray' ? 'pray' : 'idle'; face = fy;
     } else { // điểm trên vệt chân, cách người chơi một khoảng
       let need = d.gap, px = P.x, pz = P.z; tx = px; tz = pz;
       for (let i = tr.length - 1; i >= 0; i--) {
@@ -2283,6 +2330,7 @@ function familyTalk(dt) {
   else if (near(0, 8, 6)) key = 'burner'; else if (P.z < -11) key = 'hall'; else if (P.z > 30) key = 'gate';
   else if (Monks.novice && near(Monks.novice.x, Monks.novice.z, 7)) key = 'monk'; else if (U.uNight.value > .6 && Math.random() < .5) key = 'night';
   if (key !== 'any' && Math.random() < .2) key = 'any';
+  if (Store.data.ordain && Math.random() < .25) key = 'tu';
   const opts = FAMILY_SAY[key].filter(o => o[1] !== Family.lastSay), [who, text] = pick(opts);
   Family.lastSay = text; say(Family.list[who], text);
 }
@@ -2296,7 +2344,9 @@ function makeNpc(look, x, z, ry, s) {
 }
 function buildMonks() {
   const A = Monks.abbot = makeNpc({ robe: '#d9a441', robeD: '#b8862c', collar: '#f2d48a', belt: '#b8862c', sash: '#a5482a', skin: '#e3b48a', hairStyle: 'bald', mala: true, pants: '#7a5a2a', brows: '#4a3a2a' }, -7.6, 27, Math.PI / 2, 1.08);
-  A.home = Math.PI / 2; A.pose = 'mala'; A.bowT = rand(6, 12); A.nodT = 0; Col.circle(A.x, A.z, .5);
+  A.home = Math.PI / 2; A.pose = 'mala'; A.bowT = rand(6, 12); A.nodT = 0; A.shaveT = 0; Col.circle(A.x, A.z, .5);
+  const rzb = new Batch(); rzb.add(new THREE.BoxGeometry(.04, .035, .2), '#6b4a2a', TRS(0, 0, .1)); rzb.add(new THREE.BoxGeometry(.012, .075, .17), '#dfe4ea', TRS(0, -.03, .28), { jit: 0 });
+  A.C.razor = new THREE.Mesh(rzb.geometry(), chibiMat()); A.C.razor.position.set(0, -.48, .03); A.C.razor.visible = false; A.C.armR.add(A.C.razor); // dao cạo, chỉ hiện khi làm lễ xuất gia
   const N = Monks.novice = makeNpc({ robe: '#8a6040', robeD: '#6b4a30', collar: '#a07a55', belt: '#6b4a30', skin: '#f0c9a2', hair: '#2a1d17', hairStyle: 'tuft', broom: true, pants: '#5a4030' }, 7, 16, 0, .78);
   N.ri = 1; N.state = 'walk'; N.timer = 0; N.greetCD = 0; N.pose = 'sweep';
   const S = Monks.chanter = makeNpc({ robe: '#c99236', robeD: '#a8762a', collar: '#f2d48a', belt: '#a8762a', sash: '#9a3f22', skin: '#e3b48a', hairStyle: 'bald', pants: '#7a5a2a', brows: '#4a3a2a' }, -2.6, -18.95, Math.PI, 1);
@@ -2327,12 +2377,13 @@ function updateMonks(dt, t) {
     A.ry = dampAngle(A.ry, dA < 7 ? Math.atan2(P.x - A.x, P.z - A.z) : A.home, 2.5, dt);
     if (dA < 4.5 && A.talkCD <= 0 && !Game.busy) { say(A, pick(['A Di Đà Phật.', 'Lại đây nói chuyện với thầy, con.', 'Đi đường xa có mệt không con?'])); A.talkCD = rand(20, 32); }
   }
+  if (A.shaveT > 0) { A.shaveT -= dt; A.strikeA = Math.sin(t * 7) * .32; } else A.strikeA = damp(A.strikeA, 0, 8, dt);
   if (A.nodT > 0) { A.nodT -= dt; A.C.nod = Math.max(0, Math.sin(t * 5)) * .1; } else A.C.nod = 0;
   placeNpc(A, dt, t, 0);
   // Chú tiểu quét sân theo vòng, gặp người chơi thì cúi chào
   N.greetCD -= dt; let sp = 0;
   const dN = Math.hypot(P.x - N.x, P.z - N.z);
-  if (N.state !== 'greet' && dN < 2.6 && N.greetCD <= 0 && !Game.busy) { N.state = 'greet'; N.timer = 3; N.greetCD = 30; say(N, pick(['A Di Đà Phật! Chúc thí chủ một ngày an lạc.', 'A Di Đà Phật, mời vào lễ Phật ạ.', 'A Di Đà Phật!'])); }
+  if (N.state !== 'greet' && dN < 2.6 && N.greetCD <= 0 && !Game.busy) { N.state = 'greet'; N.timer = 3; N.greetCD = 30; say(N, Store.data.ordain ? pick([`A Di Đà Phật, chào ${Store.data.ordain.kind === 'ni' ? 'sư tỷ' : 'sư huynh'} mới!`, 'Cạo đầu trông mát ghê!']) : pick(['A Di Đà Phật! Chúc thí chủ một ngày an lạc.', 'A Di Đà Phật, mời vào lễ Phật ạ.', 'A Di Đà Phật!'])); }
   if (N.state === 'greet') {
     N.timer -= dt; N.lean = N.timer > 1.6 ? .4 : 0; N.ry = dampAngle(N.ry, Math.atan2(P.x - N.x, P.z - N.z), 6, dt);
     if (N.timer <= 0) N.state = 'walk';
@@ -2350,6 +2401,7 @@ function updateMonks(dt, t) {
   // Thầy ngồi thiền trước ban thờ
   S.lean = .05 + Math.max(0, Math.sin(t * .4)) ** 4 * .12; // thỉnh thoảng cúi nhẹ
   placeNpc(S, dt, t, 0);
+  updatePhotographer(dt, t);
 }
 // Khách trong sân nghe chuông thì dừng lại chắp tay hướng về gác chuông
 function guestsReact(x, z) {
@@ -2404,13 +2456,230 @@ async function actMonk() {
   const show = () => {
     let i; do { i = Math.random() * TEACH.length | 0; } while (i === last); last = i;
     A.nodT = 1.4;
-    openSheet(`<h2 class="sheet-title">Thầy Minh Tâm</h2><p class="sheet-sub">Thầy mỉm cười, chậm rãi nói:</p><div class="card"><p>“${TEACH[i]}”</p></div>${resultButtons('againBtn', 'Xin Thầy thêm lời', 'doneBtn', 'Con cảm ơn Thầy')}`);
-    $('#againBtn').onclick = show;
+    openSheet(`<h2 class="sheet-title">Thầy Minh Tâm</h2><p class="sheet-sub">Thầy mỉm cười, chậm rãi nói:</p><div class="card"><p>“${TEACH[i]}”</p></div>${resultButtons('againBtn', 'Xin Thầy thêm lời', 'doneBtn', 'Con cảm ơn Thầy')}
+      <button class="btn ghost wide" id="ordainBtn" style="margin-top:6px">${Store.data.ordain ? 'Xin hoàn tục' : 'Xin xuất gia (cạo đầu đi tu)'}</button>`);
+    $('#againBtn').onclick = show; $('#ordainBtn').onclick = Store.data.ordain ? askDisrobe : askOrdain;
     $('#doneBtn').onclick = async () => { closeSheet(); Player.pose = 'pray'; Player.leanT = .32; A.pose = 'pray'; A.lean = .25; await wait(900); if (id === Game.actId) endActivity(); };
   };
   show();
 }
 
+
+/* ===== THỢ CHỤP ẢNH trước cổng tam quan: chọn dáng, đếm 3-2-1, in ảnh lấy liền có cả cổng chùa ===== */
+const STUDIO = { x: -3.3, z: 43.1, cam: { x: -2.35, z: 42.35 }, spot: { x: 0, z: 37.7 } };
+const PHOTO_SAY = ['Chụp ảnh lưu niệm không cô chú ơi!', 'Ảnh lấy liền, đẹp như tranh!', 'Đứng trước cổng chùa chụp một kiểu nào!', 'Cả nhà vào đây chụp chung một tấm!', 'Chụp xong in liền, không lấy tiền!'];
+function buildPhotographer() {
+  const G = Monks.photo = makeNpc({ robe: '#3f7f9a', robeD: '#2f6377', collar: '#f6efe0', belt: '#2f6377', pants: '#3a3f4a', skin: '#e3b48a', hair: '#1f1612', hairStyle: 'short', bag: '#2c2c2c', brows: '#2a1d17', hat: true }, STUDIO.x, STUDIO.z, Math.PI, 1);
+  G.talkCD = 3; G.waveT = 0; Col.circle(G.x, G.z, .45);
+  // Máy ảnh trên chân ba càng, ống kính hướng về chỗ đứng chụp
+  const b = new Batch();
+  for (let k = 0; k < 3; k++) { const a = k * 2.094 + .5; beam(b, 0, 1.28, 0, Math.cos(a) * .34, 0, Math.sin(a) * .34, .035, '#2b2b2b'); }
+  b.add(new THREE.BoxGeometry(.36, .25, .22), '#1f1f22', TRS(0, 1.42, 0));
+  b.add(new THREE.CylinderGeometry(.085, .095, .2, 12), '#141414', TRS(0, 1.42, .2, 0, 1, 1, 1, Math.PI / 2));
+  b.add(new THREE.CylinderGeometry(.06, .06, .02, 12), '#7fa7d9', TRS(0, 1.42, .305, 0, 1, 1, 1, Math.PI / 2));
+  b.add(new THREE.BoxGeometry(.13, .07, .09), '#3a3a3a', TRS(0, 1.58, -.02));
+  b.add(new THREE.BoxGeometry(.11, .045, .07), '#f4f1e6', TRS(0, 1.63, .0));
+  const rig = new THREE.Mesh(b.geometry(), chibiMat()); rig.castShadow = true;
+  rig.position.set(STUDIO.cam.x, 0, STUDIO.cam.z); rig.rotation.y = Math.atan2(STUDIO.spot.x - STUDIO.cam.x, STUDIO.spot.z - STUDIO.cam.z);
+  scene.add(rig); World.photoRig = rig; Col.circle(STUDIO.cam.x, STUDIO.cam.z, .4);
+  // Biển "Chụp ảnh lấy liền" trên hai cọc tre
+  const sx = -5.6, sz = 41.4, sb = new Batch();
+  for (const o of [-.75, .75]) box(sb, sx + o * Math.cos(.35), 0, sz - o * Math.sin(.35), .07, 1.85, .07, '#a07a45');
+  const sm = new THREE.Mesh(sb.geometry(), chibiMat()); sm.castShadow = true; scene.add(sm);
+  addPlaque('Chụp ảnh lấy liền', sx, 1.5, sz + .045, 1.75, .46, .35, 768, 200, 84); addPlaque('Chùa An Lạc', sx, 1.5, sz - .045, 1.75, .46, .35 + Math.PI, 768, 200, 96);
+  Col.circle(sx, sz, .6);
+}
+function updatePhotographer(dt, t) {
+  const G = Monks.photo; if (!G) return; const P = Player;
+  G.talkCD -= dt;
+  if (!G.busy) {
+    const d = Math.hypot(P.x - G.x, P.z - G.z);
+    G.ry = dampAngle(G.ry, d < 9 ? Math.atan2(P.x - G.x, P.z - G.z) : Math.PI * .85, 3, dt);
+    if (G.waveT > 0) { G.waveT -= dt; if (G.waveT <= 0) G.pose = 'idle'; }
+    if (d < 7.5 && G.talkCD <= 0 && !Game.busy) {
+      const od = Store.data.ordain;
+      G.pose = 'wave'; G.waveT = 2.2; G.talkCD = rand(16, 26);
+      say(G, od ? `Mời ${od.kind === 'ni' ? 'sư cô' : 'sư chú'} chụp một tấm làm kỷ niệm!` : pick(PHOTO_SAY));
+    }
+  } else G.ry = dampAngle(G.ry, Math.atan2(STUDIO.spot.x - G.x, STUDIO.spot.z - G.z), 4, dt);
+  placeNpc(G, dt, t, 0);
+}
+function countdown(text) { const el = $('#cd'); el.textContent = text; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
+function flashScreen() { const el = $('#flash'); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
+async function actPhoto() {
+  beginActivity(); const id = Game.actId, G = Monks.photo; G.busy = true; G.pose = 'point';
+  say(G, Family.list[0]?.on ? 'Cả nhà đứng trước cổng chùa nhé!' : 'Mời đứng trước cổng chùa nhé!');
+  await walkTo(STUDIO.spot.x, STUDIO.spot.z, 3.4); if (id !== Game.actId) return;
+  Player.vx = Player.vz = 0; faceTo(STUDIO.cam.x, STUDIO.cam.z); G.pose = 'idle';
+  focusOn(STUDIO.spot.x, 1.05, STUDIO.spot.z, -.2, .2, 6.2);
+  photoMenu();
+}
+function photoMenu() {
+  const fam = Family.list[0]?.on;
+  openSheet(`<h2 class="sheet-title">Chụp ảnh lưu niệm</h2><p class="sheet-sub">Anh thợ ảnh hỏi: “Tạo dáng nào đây${fam ? ' cả nhà' : ''}?”</p>
+    <div class="choice" id="poseChoice"><button data-p="pray">Chắp tay<small>Trang nghiêm</small></button><button data-p="wave">Vẫy tay<small>Chào mọi người</small></button><button data-p="cheer">Giơ hai tay<small>Vui hết cỡ</small></button></div>
+    <button class="btn ghost wide" id="cancelBtn">Để sau</button>`);
+  $('#poseChoice').onclick = e => { const b = e.target.closest('button'); if (b) takePhoto(b.dataset.p); };
+  $('#cancelBtn').onclick = endActivity;
+}
+async function takePhoto(p) {
+  closeSheet(); const id = Game.actId, P = Player, G = Monks.photo;
+  P.pose = p; P.leanT = p === 'pray' ? .1 : 0; Game.famPose = p === 'pray' ? 'pray' : null;
+  G.pose = 'idle'; G.lean = .3;
+  for (const n of ['3', '2', '1']) { countdown(n); Snd.beep(880, .1); await wait(800); if (id !== Game.actId) return; }
+  countdown('Cười lên nào!'); Snd.beep(1320, .12, .2); await wait(550); if (id !== Game.actId) return;
+  Snd.shutter(); flashScreen(); vibrate(30);
+  const c = drawPhoto();
+  Store.data.photos = (Store.data.photos || 0) + 1; Store.save();
+  await wait(800); if (id !== Game.actId) return;
+  G.lean = 0; P.leanT = 0; P.pose = 'idle'; Game.famPose = null;
+  showPhotoResult(c);
+}
+// Ảnh in kiểu lấy liền: khung giấy trắng, góc tối nhẹ, dấu ngày màu cam như máy phim
+function drawPhoto() {
+  const W = 1080, H = 1350, PW = 960, PH = 1000, M = 60, serif = 'Georgia,"Times New Roman",serif';
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  x.fillStyle = '#fbf7ee'; x.fillRect(0, 0, W, H);
+  const shot = World.photoShot || (World.photoShot = new THREE.PerspectiveCamera(44, PW / PH, .1, 500));
+  shot.position.set(-1.25, 1.75, 45.4); shot.lookAt(.15, 2.75, 36); shot.updateProjectionMatrix();
+  const G = Monks.photo, hide = [...Game.zones.map(z => z.sprite), Player.tag, Player.mood, World.zoneRings, G && G.C.group, World.photoRig].filter(Boolean), vis = hide.map(o => o.visible);
+  hide.forEach(o => { o.visible = false; }); Net.setTagsVisible(false);
+  const pr = renderer.getPixelRatio(), cw = innerWidth, ch = innerHeight, uS = U.uScale.value, uP = U.uPR.value;
+  U.uScale.value = PH / 800; U.uPR.value = 1; renderer.setPixelRatio(1); renderer.setSize(PW, PH, false);
+  renderer.render(scene, shot); x.drawImage(renderer.domElement, M, M, PW, PH);
+  renderer.setPixelRatio(pr); renderer.setSize(cw, ch); U.uScale.value = uS; U.uPR.value = uP;
+  hide.forEach((o, i) => { o.visible = vis[i]; }); Net.setTagsVisible(true);
+  renderer.render(scene, camera);
+  const vg = x.createRadialGradient(M + PW / 2, M + PH / 2, PH * .38, M + PW / 2, M + PH / 2, PH * .78);
+  vg.addColorStop(0, 'rgba(60,30,0,0)'); vg.addColorStop(1, 'rgba(60,30,0,.3)'); x.fillStyle = vg; x.fillRect(M, M, PW, PH);
+  x.strokeStyle = 'rgba(0,0,0,.14)'; x.lineWidth = 2; x.strokeRect(M, M, PW, PH);
+  const d = new Date(), p2 = n => String(n).padStart(2, '0');
+  x.font = 'bold 40px "Courier New",Courier,monospace'; x.textAlign = 'right'; x.textBaseline = 'alphabetic';
+  x.fillStyle = '#ff9a3c'; x.shadowColor = 'rgba(255,90,0,.85)'; x.shadowBlur = 9; x.fillText(`${p2(d.getDate())} ${p2(d.getMonth() + 1)} '${String(d.getFullYear()).slice(2)}`, M + PW - 28, M + PH - 28); x.shadowBlur = 0;
+  x.textAlign = 'center'; x.fillStyle = '#7f2115'; x.font = `bold 64px ${serif}`; x.fillText('Chùa An Lạc', W / 2, 1150);
+  const who = displayName() + (Family.list[0]?.on ? ' cùng bà và bé' : '');
+  let fs = 44; x.font = `italic ${fs}px ${serif}`; while (x.measureText(who).width > W - 140 && fs > 26) { fs -= 2; x.font = `italic ${fs}px ${serif}`; }
+  x.fillStyle = '#33201a'; x.fillText(who, W / 2, 1218);
+  x.fillStyle = '#8c7560'; x.font = `28px ${serif}`; x.fillText(`Ảnh lấy liền trước cổng tam quan · ${dateVi(d.toISOString())}`, W / 2, 1280);
+  return c;
+}
+function showPhotoResult(c) {
+  c.toBlob(blob => {
+    c.width = c.height = 0;
+    if (!blob) { toast('Máy ảnh trục trặc, bạn chụp lại nhé'); endActivity(); return; }
+    if (World.photoUrl) URL.revokeObjectURL(World.photoUrl);
+    const url = World.photoUrl = URL.createObjectURL(blob);
+    openSheet(`<h2 class="sheet-title">Ảnh in xong rồi!</h2><img class="photo-prev" src="${url}" alt="Ảnh lưu niệm trước cổng chùa An Lạc">
+      <p class="small" style="text-align:center;margin:0 0 12px">Anh thợ ảnh: “Đẹp quá! Giữ làm kỷ niệm nhé.” · Ảnh thứ ${Store.data.photos}</p>
+      <div class="row"><button class="btn" id="againBtn">Chụp kiểu khác</button><button class="btn main" id="photoShare">Lưu, chia sẻ</button></div>
+      <button class="btn ghost wide" id="doneBtn" style="margin-top:6px">Xong</button>`);
+    $('#againBtn').onclick = () => { closeSheet(); photoMenu(); };
+    $('#photoShare').onclick = () => { endActivity(); presentShareBlob(blob, 'anh-chua-an-lac.jpg'); };
+    $('#doneBtn').onclick = endActivity;
+  }, 'image/jpeg', .9);
+}
+
+/* ===== XUẤT GIA (trong trò chơi): Thầy cạo tóc ba lượt, trao áo tràng, đặt pháp danh; hoàn tục được bất cứ lúc nào ===== */
+const PHAP_DANH = {
+  tang: [['Minh', 'Tâm', 'Quảng', 'Thiện', 'Trí', 'Nhật'], ['An', 'Hạnh', 'Tịnh', 'Đức', 'Từ', 'Huệ', 'Phước', 'Giác', 'Nguyên', 'Pháp']],
+  ni: [['Diệu', 'Như', 'Tâm', 'Huệ', 'Liên'], ['An', 'Hạnh', 'Tịnh', 'Nguyệt', 'Từ', 'Liên', 'Hiền', 'Thanh', 'Ngọc', 'Châu']],
+};
+function makeDharmaName(kind) {
+  const [a, b] = PHAP_DANH[kind], f = pick(a); let s; do { s = pick(b); } while (s === f);
+  return { full: `${kind === 'ni' ? 'Thích Nữ' : 'Thích'} ${f} ${s}`, short: `${f} ${s}` };
+}
+const HairBits = { list: [] };
+function spawnHair(n) {
+  if (!Player.chibi) return;
+  if (!World.hairGeo) { World.hairGeo = new THREE.BoxGeometry(.08, .022, .11); World.hairMat = new THREE.MeshLambertMaterial({ color: '#2a1d17' }); }
+  const v = new THREE.Vector3(); Player.chibi.head.getWorldPosition(v);
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(World.hairGeo, World.hairMat); m.position.set(v.x + rand(-.28, .28), v.y + rand(.3, .55), v.z + rand(-.28, .28)); m.rotation.set(rand(0, 6), rand(0, 6), rand(0, 6)); scene.add(m);
+    HairBits.list.push({ m, vx: rand(-.6, .6), vy: rand(0, .8), vz: rand(-.6, .6), spin: rand(-7, 7), life: rand(7, 10), ground: groundY(m.position.x, m.position.z) + .015 });
+  }
+}
+function updateHairBits(dt) {
+  const L = HairBits.list;
+  for (let i = L.length - 1; i >= 0; i--) {
+    const h = L[i], p = h.m.position; h.life -= dt;
+    if (p.y > h.ground) { // rơi lả tả, sức cản không khí lớn
+      h.vy = Math.max(h.vy - 4 * dt, -1.4); h.vx *= 1 - 1.5 * dt; h.vz *= 1 - 1.5 * dt;
+      p.x += h.vx * dt; p.z += h.vz * dt; p.y = Math.max(h.ground, p.y + h.vy * dt);
+      h.m.rotation.x += h.spin * dt; h.m.rotation.z += h.spin * .4 * dt;
+      if (p.y === h.ground) { h.m.rotation.x = 0; h.m.rotation.z = 0; }
+    }
+    if (h.life < 1) h.m.scale.setScalar(Math.max(.01, h.life));
+    if (h.life <= 0) { scene.remove(h.m); L.splice(i, 1); }
+  }
+}
+// Dựng lại nhân vật mà giữ nguyên dáng đang quỳ, đang cúi để không bị giật
+function rebuildPlayerKeepPose() {
+  const o = Player.chibi, keep = o && { b: o.body.rotation.x, lean: o.lean, by: o.body.position.y, e: o.eyes.scale.y, j: [o.armL, o.armR, o.legL, o.legR].map(j => [j.rotation.x, j.rotation.z]) };
+  buildPlayer();
+  if (!keep) return; const C = Player.chibi;
+  C.lean = keep.lean; C.body.rotation.x = keep.b; C.body.position.y = keep.by; C.eyes.scale.y = keep.e;
+  [C.armL, C.armR, C.legL, C.legR].forEach((j, i) => { j.rotation.x = keep.j[i][0]; j.rotation.z = keep.j[i][1]; });
+  C.group.position.set(Player.x, Player.y + poseDrop(Player.pose), Player.z);
+}
+function disrobe() {
+  Store.data.ordain = null; Store.save();
+  if (THREE && Player.group) rebuildPlayerKeepPose();
+}
+function askOrdain() {
+  openSheet(`<h2 class="sheet-title">Xin xuất gia</h2><p class="sheet-sub">Thầy nhìn con một lúc rồi nói: “Xuất gia là việc lớn. Ở đây con được cạo tóc, khoác áo tràng, nhận pháp danh. Muốn về đời thì cứ thưa Thầy, không sao cả.”</p>
+    <div class="choice"><button id="oTang">Làm sư chú<small>Pháp danh Thích …</small></button><button id="oNi">Làm sư cô<small>Pháp danh Thích Nữ …</small></button></div>
+    <button class="btn ghost wide" id="oBack">Con xin suy nghĩ thêm</button>`);
+  $('#oTang').onclick = () => doOrdain('tang'); $('#oNi').onclick = () => doOrdain('ni'); $('#oBack').onclick = endActivity;
+}
+async function doOrdain(kind) {
+  closeSheet(); const id = Game.actId, A = Monks.abbot, P = Player, ok = () => id === Game.actId;
+  const kx = A.x + 1.1, kz = A.z;
+  await walkTo(kx, kz, 1.6); if (!ok()) return;
+  P.x = kx; P.z = kz; P.vx = P.vz = 0; faceTo(A.x, A.z); A.ry = Math.atan2(P.x - A.x, P.z - A.z);
+  focusOn(A.x + .55, .9, A.z, 2.99, .3, 4.2); // nhìn ngang từ phía chính điện, tránh cột đèn
+  P.pose = 'kneel'; P.leanT = 0; Game.famPose = 'pray'; Game.famBack = 1.4; // cả nhà lùi lại đứng xem
+  caption('Quỳ trước Thầy, chắp tay thành kính', 2000); zenBell(.26); await wait(2000); if (!ok()) return;
+  A.pose = 'pray'; A.lean = .12; caption('Thầy tụng: Nam mô Bổn Sư Thích Ca Mâu Ni Phật', 2600); await wait(2600); if (!ok()) return;
+  A.C.razor.visible = true; A.pose = 'shave'; A.lean = .1; P.leanT = .2;
+  const vows = ['Nguyện dứt mọi điều ác', 'Nguyện làm mọi điều lành', 'Nguyện giúp khắp mọi người'], steps = ['short', 'tuft', 'bald'];
+  for (let i = 0; i < 3; i++) {
+    caption(`Lượt cạo ${i + 1}/3 · ${vows[i]}`, 2400);
+    Snd.shave(1.3); A.shaveT = 1.3; spawnHair(5);
+    await wait(650); if (!ok()) return;
+    P.lookOv = { hairStyle: steps[i] }; rebuildPlayerKeepPose(); spawnHair(9);
+    await wait(1500); if (!ok()) return;
+  }
+  A.C.razor.visible = false; A.pose = 'pray'; A.lean = .15; P.leanT = 0;
+  const pd = makeDharmaName(kind);
+  Store.data.ordain = { kind, name: pd.full, short: pd.short, date: new Date().toISOString() }; Store.data.ordainCount = (Store.data.ordainCount || 0) + 1; Store.save();
+  P.lookOv = null; rebuildPlayerKeepPose();
+  caption('Thầy trao áo tràng và chuỗi hạt', 2400); Snd.chime(.18); await wait(2000); if (!ok()) return;
+  P.pose = 'pray'; P.leanT = .35; zenBell(.24); await wait(1200); if (!ok()) return;
+  P.leanT = 0; A.pose = 'mala'; A.lean = 0; A.nodT = 1.4; caption('');
+  const title = kind === 'ni' ? 'sư cô' : 'sư chú';
+  openSheet(`<h2 class="sheet-title">Lễ xuất gia đã xong</h2><div class="card"><div class="no">PHÁP DANH</div><p>${pd.full}</p></div>
+    <p class="praise">Thầy dặn: “Từ nay con là ${title} ${pd.short}. Tu là sửa mình, bắt đầu từ hơi thở.”</p>
+    <p class="small" style="text-align:center;margin:-6px 0 12px">Bảng tên đã đổi theo pháp danh. Muốn hoàn tục (để tóc lại), bạn thưa Thầy hoặc vào Sổ.</p>
+    ${resultButtons('ordShot', 'Ra cổng chụp ảnh', 'doneBtn', 'Bạch Thầy, con đi')}`);
+  $('#doneBtn').onclick = endActivity; $('#ordShot').onclick = () => { endActivity(); toast('Anh thợ ảnh đứng ngoài cổng tam quan, bên trái lối đi', 3200); };
+  Game.famPose = 'idle';
+  if (Family.list[1]?.on) setTimeout(() => say(Family.list[1], pick(['Ơ, đầu trọc lóc rồi kìa!', 'Cho con sờ đầu một cái!'])), 900);
+  if (Family.list[0]?.on) setTimeout(() => say(Family.list[0], 'Nam mô A Di Đà Phật. Tu cho tốt nhé con.'), 3200);
+}
+function askDisrobe() {
+  const od = Store.data.ordain;
+  openSheet(`<h2 class="sheet-title">Xin hoàn tục</h2><p class="sheet-sub">${od ? `Pháp danh hiện tại: <b>${escapeHtml(od.name)}</b>. ` : ''}Thầy cười hiền: “Đi tu hay ở nhà, sống tử tế đều là tu. Về đời con nhớ giữ tâm lành nhé.”</p>
+    ${resultButtons('dStay', 'Con tu tiếp', 'dGo', 'Con xin hoàn tục')}`);
+  $('#dStay').onclick = endActivity; $('#dGo').onclick = doDisrobe;
+}
+async function doDisrobe() {
+  closeSheet(); const id = Game.actId, P = Player, A = Monks.abbot;
+  P.pose = 'pray'; P.leanT = .35; A.pose = 'pray'; A.lean = .25; Game.famPose = 'pray'; zenBell(.24);
+  caption('Lạy tạ Thầy', 1500); await wait(1400); if (id !== Game.actId) return;
+  disrobe(); Snd.chime(.16); P.leanT = 0; A.pose = 'mala'; A.lean = 0;
+  caption('Tóc mọc lại, bảng tên trở về tên thật', 2400); await wait(1800);
+  if (id === Game.actId) endActivity();
+}
 
 /* ===== TÂM TRẠNG: gõ vài chữ, hiện bong bóng trên đầu nhân vật; xoá chữ đi là tắt. Người cùng vào qua link cũng thấy ===== */
 const MOOD_MAX = 40;
@@ -2543,7 +2812,7 @@ function finishMeditate(st) {
 }
 
 /* ===== HOẠT ĐỘNG: khung chung (bảng trượt, chú thích, lớp trò nhịp) ===== */
-const Game = { t: 0, busy: false, started: false, zone: null, zones: [], visitors: 0, sitting: false, tweens: [], update: null, actId: 0 };
+const Game = { famPose: null, t: 0, busy: false, started: false, zone: null, zones: [], visitors: 0, sitting: false, tweens: [], update: null, actId: 0 };
 function beginActivity() {
   Game.busy = true; document.body.classList.add('busy');
   Input.jx = Input.jy = 0; $('#knob').style.transform = ''; Input.joyId = null; Input.lookId = null; $('#action').classList.add('hide');
@@ -2554,7 +2823,9 @@ function endActivity() {
   Game.actId++; Player.auto = null; Player.breath = 0; Player.tag.visible = true; World.striker.rotation.z = 0; World.mallet.rotation.x = 0;
   Cam.focus = null; Player.pose = 'idle'; Player.faceLock = false; Player.leanT = 0; Player.strikeA = 0; Player.held.visible = false;
   Rhythm.stop(); closeSheet(); caption('');
-  if (Monks.abbot) { Monks.abbot.busy = false; Monks.abbot.pose = 'mala'; Monks.abbot.lean = 0; }
+  if (Monks.abbot) { Monks.abbot.busy = false; Monks.abbot.pose = 'mala'; Monks.abbot.lean = 0; Monks.abbot.shaveT = 0; Monks.abbot.C.razor.visible = false; }
+  if (Monks.photo) { Monks.photo.busy = false; Monks.photo.lean = 0; Monks.photo.pose = 'idle'; }
+  Game.famPose = null; Game.famBack = 0; if (Player.lookOv) { Player.lookOv = null; rebuildPlayerKeepPose(); }
 }
 function focusOn(x, y, z, yaw, pitch, dist) { Cam.focus = { x, y, z, yaw, pitch, dist }; }
 function openSheet(html) { $('#sheetBody').innerHTML = html; $('#sheetBody').scrollTop = 0; $('#sheet').classList.add('on'); }
@@ -2892,7 +3163,7 @@ function renderBook() {
   $('#bookNameSave').onclick = () => {
     const v = $('#bookName').value.trim(), w = $('#bookWarn');
     if (!v || hasBadWord(v)) { w.textContent = !v ? 'Bạn hãy nhập tên.' : 'Tên có từ chưa phù hợp, bạn đổi tên khác nhé.'; w.classList.remove('hide'); return; }
-    d.name = v; Store.save(); setNameTag(v); w.classList.add('hide'); toast('Đã đổi tên');
+    d.name = v; Store.save(); setNameTag(displayName()); w.classList.add('hide'); toast('Đã đổi tên');
   };
   $('#bookShare').onclick = () => { $('#book').classList.add('hide'); openShare(d.prayers[0] ?? null); };
   $('#bookMain').querySelectorAll('[data-share]').forEach(b => { b.onclick = () => { $('#book').classList.add('hide'); openShare(d.prayers[+b.dataset.share]); }; });
@@ -2945,7 +3216,7 @@ function drawShareImage(prayer) {
   const textH = hasText ? lines.length * size * 1.3 : 0, cardH = 250 + textH + (hasText ? 26 : 0), cardY = H - cardH - 60;
   x.fillStyle = 'rgba(255,246,229,.95)'; x.beginPath(); x.roundRect(cardX, cardY, cardW, cardH, 34); x.fill();
   x.strokeStyle = '#b8862c'; x.lineWidth = 4; x.beginPath(); x.roundRect(cardX + 14, cardY + 14, cardW - 28, cardH - 28, 24); x.stroke();
-  x.fillStyle = '#7f2115'; x.font = `bold 52px ${serif}`; x.fillText(d.name.slice(0, 24), W / 2, cardY + 88);
+  x.fillStyle = '#7f2115'; x.font = `bold 52px ${serif}`; x.fillText(displayName().slice(0, 24), W / 2, cardY + 88);
   let y = cardY + 110;
   if (hasText) { x.fillStyle = '#33201a'; x.font = `italic ${size}px ${serif}`; lines.forEach((l, i) => x.fillText(l, W / 2, y + size + i * size * 1.3)); y += textH + 26; }
   else { y += 6; }
@@ -2955,16 +3226,17 @@ function drawShareImage(prayer) {
   return c;
 }
 function openShare(prayer) {
-  const c = drawShareImage(prayer ?? null), msg = $('#shareMsg'); msg.textContent = '';
-  c.toBlob(blob => {
-    Share.blob = blob; if (Share.url) URL.revokeObjectURL(Share.url); Share.url = URL.createObjectURL(blob);
-    $('#sharePreview').src = Share.url; $('#share').classList.remove('hide');
-    c.width = c.height = 0; // giải phóng bộ nhớ canvas
-    Share.file = null;
-    try { const f = new File([blob], 'ca-nha-len-chua.jpg', { type: 'image/jpeg' }); if (!inViewer() && navigator.canShare?.({ files: [f] })) Share.file = f; } catch (e) { /* trình duyệt cũ */ }
-    $('#shareGo').classList.toggle('hide', !Share.file);
-    if (!Share.file) msg.textContent = 'Trình duyệt này chưa chia sẻ ảnh trực tiếp được, bạn tải ảnh về rồi gửi nhé.';
-  }, 'image/jpeg', .92);
+  const c = drawShareImage(prayer ?? null);
+  c.toBlob(blob => { c.width = c.height = 0; presentShareBlob(blob, 'ca-nha-len-chua.jpg'); }, 'image/jpeg', .92); // giải phóng bộ nhớ canvas
+}
+function presentShareBlob(blob, name) {
+  const msg = $('#shareMsg'); msg.textContent = '';
+  Share.blob = blob; Share.name = name; if (Share.url) URL.revokeObjectURL(Share.url); Share.url = URL.createObjectURL(blob);
+  $('#sharePreview').src = Share.url; $('#share').classList.remove('hide');
+  Share.file = null;
+  try { const f = new File([blob], name, { type: 'image/jpeg' }); if (!inViewer() && navigator.canShare?.({ files: [f] })) Share.file = f; } catch (e) { /* trình duyệt cũ */ }
+  $('#shareGo').classList.toggle('hide', !Share.file);
+  if (!Share.file) msg.textContent = 'Trình duyệt này chưa chia sẻ ảnh trực tiếp được, bạn tải ảnh về rồi gửi nhé.';
 }
 // Trên trang đăng qua link, khung nhúng chặn tải trực tiếp nên phải xin lưu qua trình xem
 const inViewer = () => !!window.claude?.use;
@@ -2973,11 +3245,11 @@ async function saveShare() {
   if (inViewer()) {
     const dl = await window.claude.use('downloads');
     if (!dl) { msg.textContent = 'Chỗ xem này chưa tải được ảnh. Bạn nhấn giữ ảnh bên trên để lưu, hoặc chụp màn hình nhé.'; return; }
-    try { await dl.save({ filename: 'ca-nha-len-chua.jpg', data: Share.blob }); msg.textContent = 'Ảnh đã được tải xuống máy.'; }
+    try { await dl.save({ filename: Share.name || 'ca-nha-len-chua.jpg', data: Share.blob }); msg.textContent = 'Ảnh đã được tải xuống máy.'; }
     catch (e) { msg.textContent = e.code === 'declined' ? 'Bạn chưa lưu ảnh. Chạm "Tải ảnh xuống" nếu đổi ý nhé.' : 'Chưa tải được ảnh. Bạn nhấn giữ ảnh bên trên để lưu nhé.'; }
     return;
   }
-  const a = document.createElement('a'); a.href = Share.url; a.download = 'ca-nha-len-chua.jpg'; document.body.appendChild(a); a.click(); a.remove();
+  const a = document.createElement('a'); a.href = Share.url; a.download = Share.name || 'ca-nha-len-chua.jpg'; document.body.appendChild(a); a.click(); a.remove();
   msg.textContent = 'Ảnh đã được tải xuống máy.';
 }
 function closeShare() {
@@ -3024,7 +3296,7 @@ const TUT = () => {
   const touch = matchMedia('(pointer:coarse)').matches || innerWidth < 820;
   return [
     { t: 'Đi lại', d: touch ? 'Dùng cần điều khiển ở góc trái để đi. Kéo vào chỗ trống trên màn để xoay góc nhìn.' : 'Dùng phím W A S D hoặc phím mũi tên để đi. Kéo chuột để xoay góc nhìn.', a: '<svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="#f6e6cb" stroke="#b8862c" stroke-width="3"/><circle cx="60" cy="38" r="17" fill="#a5301f"/><path d="M48 14l-6 8h12zM48 82l-6-8h12zM14 48l8-6v12zM82 48l-8-6v12z" fill="#b8862c"/></svg>' },
-    { t: 'Tới gần', d: 'Những biển tên vàng chỉ chỗ có hoạt động: thắp hương, thỉnh chuông, gõ mõ, viết lời cầu, xin quẻ, lễ Phật, hỏi chuyện Thầy. Hãy đi tới gần.', a: '<svg viewBox="0 0 96 96"><ellipse cx="48" cy="72" rx="36" ry="13" fill="none" stroke="#e9b44c" stroke-width="4"/><rect x="18" y="12" width="60" height="22" rx="10" fill="#3c1814" stroke="#e9b44c" stroke-width="2"/><rect x="30" y="20" width="36" height="6" rx="3" fill="#ffe6a8"/><circle cx="48" cy="52" r="10" fill="#f0c9a2"/><path d="M38 76c0-12 4-16 10-16s10 4 10 16z" fill="#5f7fa8"/></svg>' },
+    { t: 'Tới gần', d: 'Những biển tên vàng chỉ chỗ có hoạt động: thắp hương, thỉnh chuông, gõ mõ, viết lời cầu, xin quẻ, lễ Phật, hỏi chuyện Thầy (xin xuất gia), chụp ảnh trước cổng. Hãy đi tới gần.', a: '<svg viewBox="0 0 96 96"><ellipse cx="48" cy="72" rx="36" ry="13" fill="none" stroke="#e9b44c" stroke-width="4"/><rect x="18" y="12" width="60" height="22" rx="10" fill="#3c1814" stroke="#e9b44c" stroke-width="2"/><rect x="30" y="20" width="36" height="6" rx="3" fill="#ffe6a8"/><circle cx="48" cy="52" r="10" fill="#f0c9a2"/><path d="M38 76c0-12 4-16 10-16s10 4 10 16z" fill="#5f7fa8"/></svg>' },
     { t: 'Chạm nút hành động', d: 'Tới gần thì nút đỏ lớn sẽ hiện ra. Chạm một lần là làm. Chúc bạn một buổi lên chùa thật an.', a: '<svg viewBox="0 0 96 96"><rect x="12" y="28" width="72" height="40" rx="14" fill="#a5301f" stroke="#e9b44c" stroke-width="4"/><rect x="26" y="44" width="44" height="7" rx="3.5" fill="#fff3dc"/></svg>' },
   ];
 };
@@ -3048,6 +3320,7 @@ function buildZones() {
     { id: 'ribbon', label: 'Treo dải lụa', act: 'Viết lời cầu an', x: 15.6, z: 18, r: 7, my: 3.6, ring: 1.5, rx: 14.2, rz: 17, fn: () => actPrayer('ribbon') },
     { id: 'pond', label: 'Thả hoa đăng', act: 'Viết lời cầu an', x: -19, z: -1, r: 8.9, my: 2.4, ring: 1.5, rx: -12.2, rz: 5.2, fn: () => actPrayer('lantern') },
     { id: 'phat', label: 'Lễ Phật', act: 'Lễ Phật', x: 0, z: -17.1, r: 2.4, my: 4.1, ring: .9, rx: ALTAR_SPOT.x, rz: ALTAR_SPOT.z, fn: actBuddha },
+    { id: 'photo', label: 'Chụp ảnh', act: 'Chụp ảnh lưu niệm', x: -2.9, z: 41.6, r: 3, my: 3.3, ring: 1.1, rx: -1.9, rz: 40.9, out: true, fn: actPhoto },
     { id: 'thay', label: 'Hỏi chuyện Thầy', act: 'Thưa chuyện Thầy', x: -6.6, z: 27, r: 2.8, my: 3.7, ring: 1.1, rx: -6.25, rz: 27, fn: actMonk },
   ];
   Game.zones.forEach(makeMarker); buildZoneRings(Game.zones);
@@ -3056,7 +3329,7 @@ function updateZones() {
   const P = Player; let best = null, bd = 1e9;
   for (const z of Game.zones) {
     const d = Math.hypot(P.x - z.x, P.z - z.z), n = d / z.r;
-    z.sprite.visible = !Game.busy && n > 1 && P.z < 34.5; // ngoài cổng để biển tên chùa thoáng
+    z.sprite.visible = !Game.busy && n > 1 && (z.out ? P.z > 30 : P.z < 34.5); // ngoài cổng chỉ hiện biển thợ ảnh để biển tên chùa thoáng
     if (n <= 1 && n < bd) { bd = n; best = z; }
   }
   if (Game.busy || P.auto) best = null;
@@ -3087,7 +3360,7 @@ function loop(now) {
   updateFloatingLanterns(dt, Game.t);
   updateBellVisual(dt, Game.t);
   Net.update(dt, Game.t);
-  updateFamily(dt, Game.t); updateMonks(dt, Game.t); updateAudioMix(dt);
+  updateFamily(dt, Game.t); updateMonks(dt, Game.t); updateAudioMix(dt); updateHairBits(dt);
   if (World.smokeBoost.value > 0) World.smokeBoost.value = Math.max(0, World.smokeBoost.value - dt / 16);
   for (const r of Fx.playerRibbons) { r.mesh.rotation.z = Math.sin(Game.t * 1.3 + r.ph) * .045; r.mesh.rotation.y = r.base + Math.sin(Game.t * .8 + r.ph) * .08; }
   updateZones();
@@ -3109,7 +3382,7 @@ function prepare() {
       catch (e2) { e2.netFail = true; throw e2; }
     }
     await new Promise(r => setTimeout(r, 0)); // nhường cho màn chào vẽ trước
-    initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); restorePlayerOfferings();
+    initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); buildPhotographer(); restorePlayerOfferings();
     bindInput(); bindPages();
     renderCounter(); setInterval(renderCounter, 60000);
     updateCamera(.016, 0); renderer.compile(scene, camera);
@@ -3132,7 +3405,7 @@ async function enter() {
   Store.data.name = name || 'Khách hành hương'; Store.save();
   btn.disabled = true; status.textContent = 'Đang mở cổng chùa…';
   try { await readyPromise; } catch (e) { return; }
-  setNameTag(Store.data.name);
+  setNameTag(displayName());
   _last = performance.now(); requestAnimationFrame(loop);
   $('#hud').classList.remove('hide'); $('#welcome').classList.add('out'); setTimeout(() => $('#welcome').classList.add('hide'), 800);
   Game.started = true; Net.start();
@@ -3147,7 +3420,7 @@ $('#action').addEventListener('click', () => { if (Game.zone && !Game.busy) Game
 addEventListener('focusout', () => setTimeout(() => window.scrollTo(0, 0), 60)); // bàn phím ảo đóng thì trả trang về chỗ cũ
 // Âm thanh bị hệ thống ngắt (cuộc gọi, chuyển ứng dụng) thì lần chạm sau bật lại
 for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => { if (Snd.ctx && Snd.ctx.state !== 'running' && !document.hidden) Snd.ctx.resume(); }, { passive: true });
-if (DEBUG) window.__chua = { Player, Game, World, Guests, Store, Cam, Col, Snd, Fx, Rhythm, U, Input, updatePlayer, hasBadWord, groundY, addPlayerRibbon, addPlayerLantern, Net, Family, Monks, buildPlayer, get renderer() { return renderer; } };
+if (DEBUG) window.__chua = { Player, Game, World, Guests, Store, Cam, Col, Snd, Fx, Rhythm, U, Input, updatePlayer, hasBadWord, groundY, addPlayerRibbon, addPlayerLantern, Net, Family, Monks, buildPlayer, actPhoto, askOrdain, doOrdain, doDisrobe, HairBits, STUDIO, drawPhoto, get renderer() { return renderer; } };
 prepare();
 </script>
 </body>
