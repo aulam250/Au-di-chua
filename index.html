@@ -62,6 +62,7 @@ input,textarea{font:inherit;-webkit-user-select:text;user-select:text}
 .lrow{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
 .sw{width:40px;height:40px;border-radius:50%;border:3px solid rgba(255,240,210,.55)}
 .sw.sel{border-color:#ffe2a6;box-shadow:0 0 0 3px rgba(165,48,31,.95)}
+.sw.sm{width:30px;height:30px}
 .hc{min-height:34px;padding:0 11px;border-radius:17px;background:rgba(255,246,229,.16);color:#ffe9c9;font-size:13.5px;font-weight:600;border:2px solid transparent}
 .hc.sel{background:#fff0d8;color:var(--ink);border-color:var(--gold)}
 .lname{font-size:13px;color:#ffe2b8;min-height:16px;text-align:center}
@@ -77,6 +78,7 @@ input,textarea{font:inherit;-webkit-user-select:text;user-select:text}
   background:rgba(40,22,30,.62);color:#ffeccb;font-size:12.5px;line-height:1.3;backdrop-filter:blur(3px)}
 #counter b{color:var(--gold);font-weight:700}
 #netLine{margin-top:3px;color:#a9e6d6}
+#clockLine{margin-top:2px;color:#ffe2a6}
 #tools{position:absolute;right:calc(10px + var(--sar));top:calc(10px + var(--sat));display:flex;gap:7px;pointer-events:auto}
 .tool{min-width:46px;height:46px;padding:0 10px;border-radius:12px;background:rgba(40,22,30,.72);color:#ffeccb;font-size:13px;font-weight:700;
   display:flex;align-items:center;justify-content:center;gap:5px}
@@ -231,7 +233,7 @@ textarea{width:100%;height:96px;resize:none;border-radius:14px;border:2px solid 
 </section>
 
 <div id="hud" class="hide">
-  <div id="counter">Hôm nay có <b id="countNum">…</b> người lên chùa cầu an<div id="netLine" class="hide"></div></div>
+  <div id="counter">Hôm nay có <b id="countNum">…</b> người lên chùa cầu an<div id="clockLine"></div><div id="netLine" class="hide"></div></div>
   <div id="tools">
     <button class="tool" id="muteBtn" aria-label="Tắt tiếng"></button>
     <button class="tool" id="musicBtn" aria-label="Tắt nhạc thiền"></button>
@@ -299,7 +301,7 @@ function dampAngle(a, b, k, dt) {
 }
 const wrapAngle = a => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
 const poseDrop = p => p === 'sit' || p === 'meditate' || p === 'chant' ? -.26 : p === 'kneel' ? -.17 : 0; // hạ người khi ngồi, quỳ
-const inHallArea = (x, z) => z < -11.5 && Math.abs(x) < 15.5;
+const inHallArea = (x, z) => z < -11.5 && z > -27.5 && Math.abs(x) < 15.5;
 const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dateVi = iso => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`; };
 const DEBUG = location.search.includes('debug');
@@ -334,9 +336,16 @@ const OUTFITS = [
   { n: 'Áo dài xanh ngọc', robe: '#3f8f8a', robeD: '#2f6f6b', collar: '#f2c35b', belt: '#e9b44c', pants: '#f6efe0', dai: true },
   { n: 'Áo vàng', robe: '#d9a441', robeD: '#b8862c', collar: '#fff3dc', belt: '#a5301f', pants: '#6d4a2b' },
 ];
-const HAIR_STYLES = [{ id: 'bun', n: 'Tóc búi' }, { id: 'long', n: 'Tóc dài' }, { id: 'pony', n: 'Đuôi ngựa' }, { id: 'short', n: 'Tóc ngắn' }];
+const HAIR_STYLES = [{ id: 'bun', n: 'Tóc búi' }, { id: 'long', n: 'Tóc dài' }, { id: 'pony', n: 'Đuôi ngựa' }, { id: 'short', n: 'Tóc ngắn' }, { id: 'twin', n: 'Hai búi' }, { id: 'curly', n: 'Tóc xoăn' }, { id: 'bald', n: 'Đầu trọc' }];
+const HEIGHTS = [{ n: 'Thấp', s: .9 }, { n: 'Vừa', s: 1 }, { n: 'Cao', s: 1.1 }];
+const BUILDS = [{ n: 'Gầy', w: .84 }, { n: 'Vừa', w: 1 }, { n: 'Mập', w: 1.24 }];
+const SKIN_TONES = [{ n: 'Trắng hồng', c: '#f7dabf' }, { n: 'Sáng', c: '#f0c9a2' }, { n: 'Bánh mật', c: '#d9a77b' }, { n: 'Ngăm', c: '#b98258' }, { n: 'Nâu sậm', c: '#8a5a3a' }];
+const HAIR_COLORS = [{ n: 'Tóc đen', c: '#2a1d17' }, { n: 'Tóc nâu', c: '#6a4128' }, { n: 'Tóc hạt dẻ', c: '#9a5f34' }, { n: 'Tóc bạc', c: '#d9d4c7' }];
+const lookIdx = (v, arr, def) => clamp(Number.isInteger(v) ? v : def, 0, arr.length - 1);
 function renderLookPicker(host, onChange) {
   const L = Store.data.look; L.outfit = clamp(L.outfit | 0, 0, OUTFITS.length - 1); L.hair = clamp(L.hair | 0, 0, HAIR_STYLES.length - 1);
+  L.ht = lookIdx(L.ht, HEIGHTS, 1); L.bd = lookIdx(L.bd, BUILDS, 1); L.sk = lookIdx(L.sk, SKIN_TONES, 1); L.hc = lookIdx(L.hc, HAIR_COLORS, 0);
+  const more = host.id !== 'wLook' || host.dataset.more === '1'; // màn chào thu gọn cho vừa điện thoại nhỏ
   const od = Store.data.ordain;
   host.innerHTML = od ? `<div class="looks"><div class="lname">Đang xuất gia · pháp danh <b>${escapeHtml(od.name)}</b></div>
     <div class="lrow"><button class="hc" data-disrobe="1">Hoàn tục (để tóc lại)</button></div>
@@ -344,11 +353,16 @@ function renderLookPicker(host, onChange) {
     <div class="lrow" role="radiogroup" aria-label="Trang phục">${OUTFITS.map((o, i) => `<button class="sw${i === L.outfit ? ' sel' : ''}" data-o="${i}" role="radio" aria-checked="${i === L.outfit}" aria-label="${o.n}" style="background:linear-gradient(180deg,${o.robe} 0 62%,${o.dai ? o.collar : o.robeD} 62%)"></button>`).join('')}</div>
     <div class="lname">${OUTFITS[L.outfit].n}</div>
     <div class="lrow" role="radiogroup" aria-label="Kiểu tóc">${HAIR_STYLES.map((h, i) => `<button class="hc${i === L.hair ? ' sel' : ''}" data-h="${i}" role="radio" aria-checked="${i === L.hair}">${h.n}</button>`).join('')}<button class="hc${L.hat ? ' sel' : ''}" data-hat="1" aria-pressed="${!!L.hat}">Nón lá</button></div>
+    ${more ? `<div class="lrow" role="radiogroup" aria-label="Chiều cao">${HEIGHTS.map((o, i) => `<button class="hc${i === L.ht ? ' sel' : ''}" data-ht="${i}" role="radio" aria-checked="${i === L.ht}">${o.n}</button>`).join('')}<span style="width:8px"></span>${BUILDS.map((o, i) => `<button class="hc${i === L.bd ? ' sel' : ''}" data-bd="${i}" role="radio" aria-checked="${i === L.bd}">${o.n}</button>`).join('')}</div>
+    <div class="lrow" role="radiogroup" aria-label="Màu da">${SKIN_TONES.map((o, i) => `<button class="sw sm${i === L.sk ? ' sel' : ''}" data-sk="${i}" role="radio" aria-checked="${i === L.sk}" aria-label="Da ${o.n}" title="Da ${o.n}" style="background:${o.c}"></button>`).join('')}<span style="width:10px"></span>${HAIR_COLORS.map((o, i) => `<button class="sw sm${i === L.hc ? ' sel' : ''}" data-hcol="${i}" role="radio" aria-checked="${i === L.hc}" aria-label="${o.n}" title="${o.n}" style="background:${o.c}"></button>`).join('')}</div>
+    <div class="lname">${HEIGHTS[L.ht].n} · ${BUILDS[L.bd].n} · da ${SKIN_TONES[L.sk].n.toLowerCase()} · ${HAIR_COLORS[L.hc].n.toLowerCase()}</div>` : `<div class="lrow"><button class="hc" data-more="1">Dáng người, màu da ▾</button></div>`}
     <label class="fam"><input type="checkbox" data-fam${Store.data.family !== false ? ' checked' : ''}> Đi cùng bà và bé</label></div>`;
   host.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.disrobe) { disrobe(); renderLookPicker(host, onChange); toast('Đã hoàn tục, tóc mọc lại rồi', 2200); return; }
-    if (b.dataset.o) L.outfit = +b.dataset.o; else if (b.dataset.h) L.hair = +b.dataset.h; else if (b.dataset.hat) L.hat = !L.hat; else return;
+    if (b.dataset.more) { host.dataset.more = '1'; renderLookPicker(host, onChange); return; }
+    if (b.dataset.o) L.outfit = +b.dataset.o; else if (b.dataset.h) L.hair = +b.dataset.h; else if (b.dataset.hat) L.hat = !L.hat;
+    else if (b.dataset.ht) L.ht = +b.dataset.ht; else if (b.dataset.bd) L.bd = +b.dataset.bd; else if (b.dataset.sk) L.sk = +b.dataset.sk; else if (b.dataset.hcol) L.hc = +b.dataset.hcol; else return;
     Store.save(); renderLookPicker(host, onChange); onChange?.('look');
   };
   host.querySelector('[data-fam]').onchange = e => { Store.data.family = e.target.checked; Store.save(); onChange?.('family'); };
@@ -407,15 +421,10 @@ const Snd = {
     if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : 1, this.ctx.currentTime, .05);
   },
   noiseSrc(loop = false) { const s = this.ctx.createBufferSource(); s.buffer = this.noise; s.loop = loop; if (loop) s.start(0, Math.random() * 2); return s; },
-  // Tiếng nền: gió, lá xào xạc, chim (tối thì dế), tụng kinh rì rầm, chuông xa
+  // Tiếng minh hoạ: chim (tối thì dế), chuông xa; không còn nhiễu nền gió lá
   startBackground() {
     const c = this.ctx;
-    const wind = this.noiseSrc(true), wf = c.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 750; wf.Q.value = .45;
-    const wg = c.createGain(); wg.gain.value = .085; wind.connect(wf); wf.connect(wg); wg.connect(this.bgBus);
-    const lfo = c.createOscillator(); lfo.frequency.value = .09; const lg = c.createGain(); lg.gain.value = 320; lfo.connect(lg); lg.connect(wf.frequency); lfo.start();
-    const lfo2 = c.createOscillator(); lfo2.frequency.value = .057; const lg2 = c.createGain(); lg2.gain.value = .045; lfo2.connect(lg2); lg2.connect(wg.gain); lfo2.start();
-    const leaf = this.noiseSrc(true), lfh = c.createBiquadFilter(); lfh.type = 'highpass'; lfh.frequency.value = 3200;
-    this.leafGain = c.createGain(); this.leafGain.gain.value = .014; leaf.connect(lfh); lfh.connect(this.leafGain); this.leafGain.connect(this.bgBus);
+    // Đã bỏ tiếng gió và lá xào xạc (nhiễu nền liên tục): chỉ giữ nhạc thiền và tiếng minh hoạ (chim, dế, chuông, mõ)
     // Kênh mõ: tiếng mõ dẫn nhịp khi người chơi gõ mõ tụng kinh
     this.chantBus = c.createGain(); this.chantBus.gain.value = .55;
     const dry = c.createGain(); dry.gain.value = .18; this.chantBus.connect(dry); dry.connect(this.bgBus);
@@ -430,10 +439,6 @@ const Snd = {
     if (t > this.birdAt) {
       if (this.night < .55) this.bird(); else this.cricket();
       this.birdAt = t + (this.night < .55 ? rand(2.5, 9) : rand(1.5, 4));
-    }
-    if (t > this.rustleAt) {
-      this.leafGain.gain.setTargetAtTime(.06, t, .7); this.leafGain.gain.setTargetAtTime(.014, t + rand(1.5, 3), 1.1);
-      this.rustleAt = t + rand(6, 14);
     }
     if (t > this.bellAt) { this.bell(.18, 7, true); this.bellAt = t + rand(38, 70); }
   },
@@ -526,6 +531,32 @@ const Snd = {
     const n = this.noiseSrc(), g = c.createGain(); g.gain.setValueAtTime(0, t0); n.connect(g); g.connect(bp);
     for (let t = t0; t < t0 + dur;) { const a = .08 + rand(.2, .6) * Math.sin(Math.PI * (t - t0) / dur); g.gain.setValueAtTime(.002, t); g.gain.linearRampToValueAtTime(a, t + .006); g.gain.exponentialRampToValueAtTime(.002, t + .03); t += rand(.022, .04); }
     n.start(t0, Math.random()); n.stop(t0 + dur + .05);
+  },
+  meow(vol = .4) { // tiếng mèo: răng cưa qua bộ lọc formant trượt "m-e-o"
+    if (!this.ctx || vol <= 0) return;
+    const c = this.ctx, t = c.currentTime + .01, dur = rand(.45, .7), f0 = rand(480, 620);
+    const o = c.createOscillator(), bp = c.createBiquadFilter(), bp2 = c.createBiquadFilter(), g = c.createGain(), g2 = c.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 1.45, t + dur * .35); o.frequency.linearRampToValueAtTime(f0 * .8, t + dur);
+    bp.type = 'bandpass'; bp.Q.value = 3; bp.frequency.setValueAtTime(900, t); bp.frequency.linearRampToValueAtTime(1800, t + dur * .4); bp.frequency.linearRampToValueAtTime(700, t + dur);
+    bp2.type = 'bandpass'; bp2.Q.value = 4; bp2.frequency.value = 2900; g2.gain.value = .35;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .06); g.gain.setValueAtTime(vol * .9, t + dur * .7); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(bp); o.connect(bp2); bp2.connect(g2); g2.connect(g); bp.connect(g); g.connect(this.master);
+    const w = c.createGain(); w.gain.value = .15; g.connect(w); w.connect(this.rev); o.start(t); o.stop(t + dur + .05);
+  },
+  purr(dur = 2.4, vol = .35) { // rừ rừ: nhiễu trầm rung 26 lần mỗi giây
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + .01, n = this.noiseSrc(true), lp = c.createBiquadFilter(), am = c.createGain(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+    lp.type = 'lowpass'; lp.frequency.value = 380; am.gain.value = .5; lfo.type = 'triangle'; lfo.frequency.value = 26; lg.gain.value = .5; lfo.connect(lg); lg.connect(am.gain);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .3); g.gain.setValueAtTime(vol, t + dur - .4); g.gain.linearRampToValueAtTime(0, t + dur);
+    n.connect(lp); lp.connect(am); am.connect(g); g.connect(this.master); lfo.start(t); lfo.stop(t + dur + .1); n.stop(t + dur + .1);
+  },
+  splash(vol = .5) { // cá rơi xuống nước
+    if (!this.ctx) return;
+    const c = this.ctx, t = c.currentTime + .005, n = this.noiseSrc(), lp = c.createBiquadFilter(), g = c.createGain();
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(3500, t); lp.frequency.exponentialRampToValueAtTime(400, t + .5);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + .55); n.connect(lp); lp.connect(g); g.connect(this.master);
+    const w = c.createGain(); w.gain.value = .3; g.connect(w); w.connect(this.rev); n.start(t, Math.random()); n.stop(t + .6);
+    for (let i = 0; i < 4; i++) { const o = c.createOscillator(), e = c.createGain(), s = t + .08 + i * rand(.05, .12); o.frequency.setValueAtTime(rand(900, 1500), s); o.frequency.exponentialRampToValueAtTime(rand(1800, 2600), s + .05); e.gain.setValueAtTime(.08, s); e.gain.exponentialRampToValueAtTime(.001, s + .07); o.connect(e); e.connect(this.master); o.start(s); o.stop(s + .08); }
   },
   /* ----- NHẠC THIỀN: đàn tranh (dây gảy Karplus-Strong, có nhấn và rung), sáo trúc, bát chuông, tiếng ngân nền.
      Ngũ cung Sol (G A C D E), cùng gốc 98 Hz với giọng tụng và chuông. Câu nhạc sinh ngẫu nhiên nên không lặp. ----- */
@@ -786,7 +817,7 @@ const Col = {
         }
       }
     }
-    this.out.x = clamp(x, -27.3, 27.3); this.out.z = clamp(z, -27.3, 44.5);
+    this.out.x = clamp(x, -27.3, 27.3); this.out.z = clamp(z, -91.3, 44.5);
     return this.out;
   },
   // Máy quay không chui xuyên tường cao
@@ -796,7 +827,9 @@ const Col = {
   },
 };
 // Độ cao mặt đất: nền chính điện cao hơn sân, có bậc thoải
+const DINH = { x: 0, z: -54, w: 9, d: 5 }; // nhà đình trong hậu viện: tâm, nửa rộng, nửa sâu
 function groundY(x, z) {
+  if (z < -28.5) { const e = Math.max(Math.abs(x - DINH.x) - DINH.w, Math.abs(z - DINH.z) - DINH.d); return e < 0 ? .45 : e < .8 ? lerp(.45, 0, e / .8) : 0; }
   if (Math.abs(x) > 16 || z > -10.5 || z < -27.5) return 0;
   return z < -12 ? .5 : lerp(0, .5, (-10.5 - z) / 1.5);
 }
@@ -817,10 +850,10 @@ function initRenderer() {
   camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .1, 500);
   hemi = new THREE.HemisphereLight('#ffd9b0', '#5b4436', 1.2); scene.add(hemi);
   sun = new THREE.DirectionalLight('#ffc48a', 2.2);
-  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
-  const sc = sun.shadow.camera; sc.left = -52; sc.right = 52; sc.top = 52; sc.bottom = -52; sc.near = 10; sc.far = 220;
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  const sc = sun.shadow.camera; sc.left = -78; sc.right = 78; sc.top = 78; sc.bottom = -78; sc.near = 10; sc.far = 280;
   sun.shadow.bias = -.0012; sun.shadow.normalBias = .35;
-  sun.target.position.set(0, 0, 8); scene.add(sun, sun.target);
+  sun.target.position.set(0, 0, -24); scene.add(sun, sun.target);
   altarLight = new THREE.PointLight('#ffcf9c', 60, 26, 1.7); altarLight.position.set(0, 4.8, -16.5); scene.add(altarLight);
   burnerLight = new THREE.PointLight('#ff9a52', 14, 15, 1.7); burnerLight.position.set(0, 3, 8); scene.add(burnerLight);
   updateRendererSize();
@@ -841,9 +874,26 @@ const SKY = [
   { top: '#1c2257', hor: '#6a4276', fog: '#4f3b63', sunC: '#8d84c9', sunI: .55, hS: '#8d88c2', hG: '#33293d', hI: .85 },
   { top: '#0a0f2e', hor: '#1f2550', fog: '#1a1f42', sunC: '#a7b4ec', sunI: .5, hS: '#6f7bb8', hG: '#2a2336', hI: .78 },
 ];
+// Trời theo giờ Việt Nam (UTC+7): đêm → rạng đông → bình minh → sáng → trưa → chiều → hoàng hôn → đêm
+const SKY_DAY = {
+  night: SKY[3],
+  dawn: { top: '#1f2a5e', hor: '#7d5a86', fog: '#5d4c6e', sunC: '#a59ad0', sunI: .6, hS: '#9a96c8', hG: '#3a2f3f', hI: .82 },
+  rise: { top: '#4a5f9e', hor: '#ffb07a', fog: '#d9a080', sunC: '#ffb98a', sunI: 1.8, hS: '#ffd0b8', hG: '#5a4538', hI: 1.05 },
+  morning: { top: '#4f86cc', hor: '#f0dcc0', fog: '#d6d2c4', sunC: '#ffe6c2', sunI: 2.5, hS: '#fff0dc', hG: '#665040', hI: 1.22 },
+  noon: { top: '#3f7fd0', hor: '#cfe2ef', fog: '#c2d5df', sunC: '#fff6e6', sunI: 2.7, hS: '#eef4ff', hG: '#6b5a45', hI: 1.3 },
+  after: { top: '#4f80c4', hor: '#f3d2a2', fog: '#dcc6a4', sunC: '#ffdca8', sunI: 2.6, hS: '#ffe9cc', hG: '#6a4d3a', hI: 1.25 },
+  set0: SKY[0], set1: SKY[1], set2: SKY[2],
+};
+const SKY_TIMES = [[0, 'night'], [4.6, 'night'], [5.2, 'dawn'], [5.9, 'rise'], [7.4, 'morning'], [11, 'noon'], [14.5, 'noon'], [16.3, 'after'], [17.5, 'set0'], [18.05, 'set1'], [18.55, 'set2'], [19.3, 'night'], [24, 'night']];
+const HOUR_OVERRIDE = (() => { const m = location.search.match(/[?&]gio=([\d.]+)/); return m ? clamp(+m[1], 0, 23.99) : null; })(); // ?gio=14.5 để xem thử một giờ
+function vnHour() {
+  if (World.hourOv != null) return World.hourOv;
+  if (HOUR_OVERRIDE != null) return HOUR_OVERRIDE;
+  const d = new Date(); return (d.getUTCHours() + 7) % 24 + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+}
 
 function buildSky() {
-  SKY.forEach(k => { for (const n of ['top', 'hor', 'fog', 'sunC', 'hS', 'hG']) k[n] = new THREE.Color(k[n]); });
+  for (const k of new Set([...SKY, ...Object.values(SKY_DAY)])) if (!k.top.isColor) for (const n of ['top', 'hor', 'fog', 'sunC', 'hS', 'hG']) k[n] = new THREE.Color(k[n]);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: { uTop: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3() }, uNight: U.uNight, uMoon: { value: new THREE.Vector3(.45, .62, -.64).normalize() } },
@@ -878,22 +928,26 @@ function buildSky() {
   }));
   stars.frustumCulled = false; scene.add(stars);
 }
-function updateSky(force) {
-  const p = clamp(World.t, 0, 1) * (SKY.length - 1), i = Math.min(p | 0, SKY.length - 2), f = p - i, A = SKY[i], B = SKY[i + 1];
+function updateSky() {
+  const h = vnHour(); let i = 0; while (i < SKY_TIMES.length - 2 && SKY_TIMES[i + 1][0] <= h) i++;
+  const [h0, k0] = SKY_TIMES[i], [h1, k1] = SKY_TIMES[i + 1], f = clamp((h - h0) / (h1 - h0 || 1), 0, 1), A = SKY_DAY[k0], B = SKY_DAY[k1];
   World.sky.uniforms.uTop.value.lerpColors(A.top, B.top, f);
   World.sky.uniforms.uHor.value.lerpColors(A.hor, B.hor, f);
   scene.fog.color.lerpColors(A.fog, B.fog, f);
   sun.color.lerpColors(A.sunC, B.sunC, f); sun.intensity = lerp(A.sunI, B.sunI, f);
   hemi.color.lerpColors(A.hS, B.hS, f); hemi.groundColor.lerpColors(A.hG, B.hG, f); hemi.intensity = lerp(A.hI, B.hI, f);
-  const t = World.t;
-  U.uNight.value = clamp((t - .3) / .55, 0, 1);
-  U.uGlow.value = lerp(.42, 1, clamp(t / .65, 0, 1));
-  Snd.night = U.uNight.value;
-  // Đĩa mặt trời chìm dần; hướng sáng được đặt lệch để mặt tiền chùa vẫn được chiếu
-  const el = lerp(.2, -.28, clamp(t / .5, 0, 1));
-  World.sky.uniforms.uSun.value.set(-.72, el, -.68).normalize();
-  const nt = clamp((t - .5) / .4, 0, 1);
-  sun.position.set(lerp(-62, 42, nt), lerp(38, 86, nt), lerp(38, 46, nt)).add(sun.target.position);
+  const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const night = h < 12 ? 1 - sm(4.9, 6.1, h) : sm(17.9, 19.2, h), dusk = h > 12 ? sm(16.8, 18, h) : 0;
+  U.uNight.value = night; World.hour = h;
+  U.uGlow.value = lerp(.3, 1, clamp(night * 1.25 + dusk * .2, 0, 1));
+  Snd.night = night;
+  // Mặt trời mọc phía đông (+x), lên cao phía trước chùa lúc trưa, lặn phía tây (-x); đêm thì ánh trăng từ trên cao
+  const a = (h - 6) / 12 * Math.PI, el = Math.sin(a);
+  const sd = World._sd || (World._sd = new THREE.Vector3()), L = World._ld || (World._ld = new THREE.Vector3()), N = World._nd || (World._nd = new THREE.Vector3(42, 86, 46).normalize());
+  sd.set(Math.cos(a), el * .92, .42 + Math.max(0, el) * .2).normalize();
+  World.sky.uniforms.uSun.value.copy(sd);
+  L.set(sd.x, Math.max(sd.y, .2), sd.z).normalize().lerp(N, night).normalize();
+  sun.position.copy(L).multiplyScalar(130).add(sun.target.position);
   altarLight.intensity = lerp(45, 90, U.uGlow.value);
   burnerLight.intensity = lerp(5, 34, U.uNight.value);
   if (World.water) { World.water.uniforms.uA.value.copy(World.sky.uniforms.uTop.value).multiplyScalar(.55); World.water.uniforms.uB.value.copy(World.sky.uniforms.uHor.value).multiplyScalar(.7); }
@@ -936,7 +990,7 @@ function buildGround(W) {
   // Đất cỏ gợn nhẹ
   const G = new Batch(), grass = new THREE.PlaneGeometry(440, 440, 36, 36); grass.rotateX(-Math.PI / 2);
   const gp = grass.attributes.position;
-  for (let i = 0; i < gp.count; i++) { const x = gp.getX(i), z = gp.getZ(i), d = Math.hypot(x, z - 8); if (d > 70) gp.setY(i, Math.sin(x * .05) * Math.cos(z * .06) * 3 * clamp((d - 70) / 60, 0, 1)); else gp.setY(i, -.05); }
+  for (let i = 0; i < gp.count; i++) { const x = gp.getX(i), z = gp.getZ(i), d = Math.hypot(x, (z + 25) * .8); if (d > 70) gp.setY(i, Math.sin(x * .05) * Math.cos(z * .06) * 3 * clamp((d - 70) / 60, 0, 1)); else gp.setY(i, -.05); }
   G.add(grass, '#57683a', null, { jit: .09 });
   // Núi xa
   for (let i = 0; i < 26; i++) {
@@ -968,7 +1022,8 @@ function buildWalls(W, R) {
     box(W, cx, 2.5, cz, sx + .5, .16, sz + .5, cap);
     box(W, cx, 2.66, cz, (lx ? sx : .3) + .1, .18, (lz ? sz : .3) + .1, '#a24a2c');
   };
-  seg(-28, 34, -6.5, 34); seg(6.5, 34, 28, 34); seg(-28, -28, 28, -28); seg(-28, -28, -28, 34); seg(28, -28, 28, 34);
+  seg(-28, 34, -6.5, 34); seg(6.5, 34, 28, 34); seg(-28, -28, -22.2, -28); seg(-17.8, -28, 17.8, -28); seg(22.2, -28, 28, -28); seg(-28, -92, -28, 34); seg(28, -92, 28, 34); seg(-28, -92, 28, -92);
+  Col.box(-29, -22.2, -28.4, -27.6, 2.6); Col.box(-17.8, 17.8, -28.4, -27.6, 2.6); Col.box(22.2, 29, -28.4, -27.6, 2.6); // tường sau chánh điện, hở hai cổng phụ
   Col.box(-29, -6.5, 33.6, 34.4, 2.6); Col.box(6.5, 29, 33.6, 34.4, 2.6);
   // Hàng rào cây thấp ở sân ngoài
   for (let z = 35; z < 46; z += 1.6) for (const sg of [-1, 1]) blob(W, sg * 9.8, .7, z, 1.0, z % 3 < 1.2 ? '#5a7a3c' : '#4d6e36', .9);
@@ -1029,7 +1084,7 @@ function buildHall(W, R, S) {
   // Mái hai tầng
   curvedRoof(R, 0, 6.05, -19.5, 18.6, 11.2, 2.1, { curl: 1.1, flare: .8, ridge: 13, ribTh: .2, rows: 5, seg: 24, tip: 1.2, ridgeTh: .05, pow: 1.1 });
   curvedRoof(R, 0, 8.05, -19.5, 15.6, 7.7, 5, { curl: 1.0, flare: .7, pearl: .55, ridgeTh: .46, ribTh: .2, rows: 8, seg: 22, tip: 1.2 });
-  addPlaque('Chính Điện', 0, 5.32, -12.2, 3.4, .9, 0, 600, 158, 92);
+  addPlaque('Chánh Điện', 0, 5.32, -12.2, 3.4, .9, 0, 600, 158, 92);
   // Hai bức trướng đỏ chữ quốc ngữ
   const banner = (t, x) => {
     const map = canvasTex(128, 512, (c, w, h) => { c.fillStyle = '#8f2415'; c.fillRect(0, 0, w, h); c.strokeStyle = '#e4b04a'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12); c.fillStyle = '#f5cf73'; c.font = 'bold 58px Georgia,serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; const ws = t.split(' '); ws.forEach((s, i) => c.fillText(s, w / 2, h / 2 + (i - (ws.length - 1) / 2) * 96)); });
@@ -1057,7 +1112,7 @@ function buildHall(W, R, S) {
 const Seats = [];
 for (const z of [-17.6, -15.8, -14]) for (let x = -5; x <= 5; x += 2) Seats.push([x, z]);
 
-function buildStatue(S) {
+function buildStatue(S, withHalo = true) {
   const gold = '#c9973a', gold2 = '#b6842c', y0 = 1.92, z0 = -24.3, sm = { smooth: true, jit: 0 };
   const lathe = (pts, c, m, seg = 20) => S.add(new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg), c, m, sm);
   // Toà sen
@@ -1105,6 +1160,7 @@ function buildStatue(S) {
   S.add(new THREE.SphereGeometry(.035, 6, 6), '#e8c56e', TRS(0, yh + .2, fz + .02), sm);
   S.add(new THREE.SphereGeometry(.06, 8, 6), '#c79a40', TRS(0, yh - .1, fz + .03, 0, .7, 1.2, .9), sm);
   beam(S, -.09, yh - .29, fz - .03, .09, yh - .29, fz - .03, .026, '#7d4a26', 0);
+  if (!withHalo) return;
   // Hào quang sau đầu
   const halo = new THREE.Mesh(new THREE.RingGeometry(.92, 1.08, 40), new THREE.MeshBasicMaterial({ color: '#f1c25b', side: THREE.DoubleSide })); halo.position.set(0, yh + .1, z0 - .72); scene.add(halo);
   const haloGlow = canvasTex(256, 256, (c, w) => { const g = c.createRadialGradient(w / 2, w / 2, 20, w / 2, w / 2, w / 2); g.addColorStop(0, 'rgba(255,214,130,.85)'); g.addColorStop(.55, 'rgba(255,190,100,.32)'); g.addColorStop(1, 'rgba(255,170,80,0)'); c.fillStyle = g; c.fillRect(0, 0, w, w); });
@@ -1219,6 +1275,7 @@ function buildGardens(W) {
   for (let i = 0; i < 46; i++) {
     const a = i / 46 * 6.283 + rand(-.05, .05), rx = rand(35, 62), rz = rand(44, 66), x = Math.cos(a) * rx, z = Math.sin(a) * rz + 8;
     if (Math.abs(x) < 15 && z > 30) continue;
+    if (Math.abs(x) < 32 && z < -24 && z > -96) continue; // chỗ của hậu viện
     tree(W, x, z, rand(8, 15), Math.random() < .25 ? 1 : Math.random() < .4 ? 2 : 0, false);
   }
   // Cây trong sân, sau điện và hai bên
@@ -1306,8 +1363,8 @@ function buildParticles() {
     fragmentShader: `uniform float uNight; varying float vA; void main(){ float d=length(gl_PointCoord-.5)*2.; float a=smoothstep(1.,.15,d)*vA; vec3 c=mix(vec3(.96,.9,.84),vec3(.72,.7,.8),uNight); gl_FragColor=vec4(c,a); }` }));
   smoke.frustumCulled = false; smoke.renderOrder = 3; scene.add(smoke);
   // Đom đóm
-  const F = 70, fs = new Float32Array(F * 3), fp = new Float32Array(F * 3);
-  for (let i = 0; i < F; i++) { fp[i * 3] = rand(-27, 27); fp[i * 3 + 1] = rand(.5, 3.2); fp[i * 3 + 2] = rand(-11, 33); fs[i * 3] = Math.random() * 6.28; fs[i * 3 + 1] = rand(.3, 1); fs[i * 3 + 2] = Math.random() * 6.28; }
+  const F = 110, fs = new Float32Array(F * 3), fp = new Float32Array(F * 3);
+  for (let i = 0; i < F; i++) { fp[i * 3] = rand(-27, 27); fp[i * 3 + 1] = rand(.5, 3.2); fp[i * 3 + 2] = rand(-88, 33); fs[i * 3] = Math.random() * 6.28; fs[i * 3 + 1] = rand(.3, 1); fs[i * 3 + 2] = Math.random() * 6.28; }
   const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(fp, 3)); fg.setAttribute('aS', new THREE.BufferAttribute(fs, 3));
   const ff = new THREE.Points(fg, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
     vertexShader: `attribute vec3 aS; uniform float uT,uPR,uScale,uNight; varying float vA; void main(){ vec3 c=position; c.x+=sin(uT*.34*aS.y+aS.x)*2.1; c.y+=sin(uT*.5+aS.z)*.55; c.z+=cos(uT*.27*aS.y+aS.z)*2.1; vec4 mv=modelViewMatrix*vec4(c,1.); gl_PointSize=(3.5+aS.y*2.5)*uPR*uScale*(26./-mv.z)+1.5*uPR; vA=smoothstep(.15,.7,uNight)*pow(.5+.5*sin(uT*2.2*aS.y+aS.x),3.); gl_Position=projectionMatrix*mv; }`,
@@ -1504,10 +1561,10 @@ function buildWorld() {
   World.dummy = new THREE.Object3D();
   const W = new Batch(), R = new Batch(), S = new Batch();
   buildSky(); buildGround(W); buildWalls(W, R); buildGate(W, R); buildHall(W, R, S); buildBurner(W, S); buildBellTower(W, R);
-  const branches = buildBodhi(W); buildPond(W, R); buildGardens(W); buildLanterns(W); buildActivityProps(W);
+  const branches = buildBodhi(W); buildPond(W, R); buildGardens(W); buildBackyard(W, R, S); buildLanterns(W); buildActivityProps(W);
   const mkMesh = (b, side = THREE.FrontSide) => { const m = new THREE.Mesh(b.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, side })); m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
   mkMesh(W); mkMesh(R, THREE.DoubleSide); mkMesh(S, THREE.DoubleSide);
-  buildRibbons(branches); buildFloatingLanterns(); buildSticks(); buildParticles();
+  buildRibbons(branches); buildFloatingLanterns(); buildSticks(); buildParticles(); buildKoi();
   updateSky(); renderer.shadowMap.needsUpdate = true;
 }
 /* ===== NHÂN VẬT: chibi áo lam, nhìn từ sau lưng, đi lại và các tư thế ===== */
@@ -1560,6 +1617,12 @@ function buildChibi(o) {
   else if (style === 'long') put(Hb, new THREE.CapsuleGeometry(.24, .44, 4, 12), hair, 0, .04, -.21, 1.25, 1, .48);
   else if (style === 'pony') { put(Hb, new THREE.SphereGeometry(.1, 10, 8), hair, 0, .5, -.38); put(Hb, new THREE.CapsuleGeometry(.075, .3, 4, 8), hair, 0, .22, -.46, 1, 1, 1, .3); put(Hb, new THREE.TorusGeometry(.07, .022, 5, 12), '#d0453a', 0, .43, -.41, 1, 1, 1, Math.PI / 2 - .3); }
   if (style === 'short' || style === 'pony') put(Hb, new THREE.SphereGeometry(.26, 14, 8), hair, 0, .53, .2, 1.25, .45, .7); // tóc mái
+  if (style === 'twin') for (const sg of [-1, 1]) { put(Hb, new THREE.SphereGeometry(.13, 12, 10), hair, sg * .27, .6, -.1); put(Hb, new THREE.TorusGeometry(.07, .02, 5, 12), '#d0453a', sg * .22, .55, -.08, 1, 1, 1, 0, 0, sg * .9); } // hai búi hai bên
+  if (style === 'curly') for (let i = 0; i < 34; i++) { // tóc xoăn: nhiều lọn tròn phủ quanh đầu
+    const v = i / 34, y = .1 + v * .9, r = Math.sqrt(Math.max(0, 1 - y * y)), a = i * 2.399, sx = Math.sin(a) * r, sz = Math.cos(a) * r;
+    if (sz > .3 && y < .62) continue; // chừa mặt
+    put(Hb, new THREE.SphereGeometry(.1, 7, 6), hair, sx * .42, .32 + y * .42, sz * .42 - .03);
+  }
   if (style === 'tuft') put(Hb, new THREE.SphereGeometry(.085, 8, 6), hair, 0, .66, .13, 1, .7, 1.25); // chỏm tóc chú tiểu
   for (const sg of [-1, 1]) put(Hb, new THREE.SphereGeometry(.062, 8, 6), '#f3a39b', sg * .21, .2, .27, 1, .6, .32); // má hồng
   put(Hb, new THREE.TorusGeometry(.046, .013, 5, 10, Math.PI), '#9a4a3a', 0, .17, .33, 1, 1, 1, 0, 0, Math.PI); // miệng cười
@@ -1631,7 +1694,7 @@ function animateChibi(C, dt, t, s) {
   C.blinkT -= dt; let eo = 1;
   if (p === 'pray' || p === 'sit' || p === 'chant' || p === 'kneel' || p === 'meditate') eo = .14;
   else if (C.blinkT < 0) { eo = .1; if (C.blinkT < -.13) C.blinkT = rand(2.2, 5.5); }
-  const bs = p === 'meditate' ? 1 + (s.breath || 0) * .03 : 1; C.body.scale.x = C.body.scale.z = damp(C.body.scale.x, bs, 6, dt); // ngực phồng khi thở vào
+  const bs = (p === 'meditate' ? 1 + (s.breath || 0) * .03 : 1) * (C.wide || 1); C.body.scale.x = C.body.scale.z = damp(C.body.scale.x, bs, 6, dt); // ngực phồng khi thở vào
   C.eyes.scale.y = damp(C.eyes.scale.y, eo, 28, dt);
   C.head.rotation.y = dampAngle(C.head.rotation.y, clamp(C.lookY, -.9, .9), 5, dt);
   C.head.rotation.x = damp(C.head.rotation.x, C.nod, 6, dt);
@@ -1643,7 +1706,7 @@ const ORDAIN_LOOK = { // áo tràng khi xuất gia
 const displayName = () => Store.data.ordain?.name || Store.data.name;
 function playerLook() {
   const L = Store.data.look, o = OUTFITS[clamp(L.outfit | 0, 0, OUTFITS.length - 1)], od = Store.data.ordain;
-  const look = { ...o, skin: '#f0c9a2', hair: '#2a1d17', hairStyle: HAIR_STYLES[clamp(L.hair | 0, 0, HAIR_STYLES.length - 1)].id, hat: !!L.hat };
+  const look = { ...o, skin: SKIN_TONES[lookIdx(L.sk, SKIN_TONES, 1)].c, hair: HAIR_COLORS[lookIdx(L.hc, HAIR_COLORS, 0)].c, hairStyle: HAIR_STYLES[clamp(L.hair | 0, 0, HAIR_STYLES.length - 1)].id, hat: !!L.hat };
   if (od) Object.assign(look, ORDAIN_LOOK[od.kind] || ORDAIN_LOOK.tang, { dai: false, hairStyle: 'bald', hat: false, mala: true });
   if (Player.lookOv) Object.assign(look, Player.lookOv); // đang cạo dở
   return look;
@@ -1658,7 +1721,8 @@ function buildPlayer() {
   for (let i = 0; i < 3; i++) {
     const s = new THREE.Mesh(stickG, stickM), e = new THREE.Mesh(eG, eM); s.position.set((i - 1) * .055, .4, 0); s.rotation.z = (1 - i) * .05; e.position.set((i - 1) * .08, .875, 0); held.add(s, e); Player.heldEmbers.push(s, e);
   }
-  C.group.scale.setScalar(1.05); C.group.position.set(Player.x, Player.y, Player.z); C.group.rotation.y = Player.ry; scene.add(C.group);
+  const Lk = Store.data.look; C.group.scale.setScalar(1.05 * HEIGHTS[lookIdx(Lk.ht, HEIGHTS, 1)].s); C.wide = BUILDS[lookIdx(Lk.bd, BUILDS, 1)].w; C.body.scale.x = C.body.scale.z = C.wide; // cao thấp, gầy mập
+  C.group.position.set(Player.x, Player.y, Player.z); C.group.rotation.y = Player.ry; scene.add(C.group);
   setNameTag(displayName()); setMoodTag(Store.data.mood || '');
   if (Game.busy) Player.tag.visible = false;
 }
@@ -1739,7 +1803,8 @@ function updateCamera(dt, t) {
   for (let i = 1; i <= 10; i++) { const s = Cam.dist * i / 10; if (Col.cameraBlocked(Cam.tx + hx * s, Cam.ty + hy * s, Cam.tz + hz * s)) { d = Math.max(1.6, s - .5); break; } }
   let cx = Cam.tx + hx * d, cyy = Cam.ty + hy * d, cz = Cam.tz + hz * d;
   // Trong điện thì giữ máy quay dưới trần và dưới mép mái
-  if (Cam.tz < -8.5 && Math.abs(Cam.tx) < 19) cyy = Math.min(cyy, 5.25); else if (cz < -7.6 && Math.abs(cx) < 20 && cyy > 5.3 && cyy < 11) cyy = 5.3;
+  if (Cam.tz < -8.5 && Cam.tz > -28 && Math.abs(Cam.tx) < 19) cyy = Math.min(cyy, 5.25); else if (cz < -7.6 && cz > -29 && Math.abs(cx) < 20 && cyy > 5.3 && cyy < 11) cyy = 5.3;
+  if (Math.abs(Cam.tx - DINH.x) < DINH.w && Math.abs(Cam.tz - DINH.z) < DINH.d) cyy = Math.min(cyy, 4.1);
   cyy = Math.max(cyy, .55 + groundY(cx, cz));
   Cam.x = damp(Cam.x, cx, 16, dt); Cam.y = damp(Cam.y, cyy, 16, dt); Cam.z = damp(Cam.z, cz, 16, dt);
   Cam.shake = Math.max(0, Cam.shake - dt * 1.1);
@@ -1793,15 +1858,16 @@ function bindInput() {
 }
 
 /* ===== KHÁCH AI: 30–60 khách dùng InstancedMesh, đi dạo, chắp tay, thắp hương, tụng kinh, chụp ảnh ===== */
-const GN = 60, BASE_GUESTS = 38;
+const GN = 72, BASE_GUESTS = 48;
 const Guests = { list: [], mesh: {}, slotUsed: new Array(Seats.length).fill(false), groupTimer: 22, count: 0, bubbleTimer: 2, flag: null, leader: null };
-const WANDER = [[-8, 20], [8, 20], [-14, 24], [13, 26], [0, 22], [-5, 14], [5, 14], [-10, 8], [10, 8], [-22, 13], [14, 12], [24, 14], [12, 4], [-8, -2], [7, -3], [20, 4], [25, 2], [-11, -8], [11, -8], [0, -3], [-4, 28], [4, 28], [14, -9], [-23, 25], [24, 28]];
+const WANDER = [[-8, 20], [8, 20], [-14, 24], [13, 26], [0, 22], [-5, 14], [5, 14], [-10, 8], [10, 8], [-22, 13], [14, 12], [24, 14], [12, 4], [-8, -2], [7, -3], [20, 4], [25, 2], [-11, -8], [11, -8], [0, -3], [-4, 28], [4, 28], [14, -9], [-23, 25], [24, 28],
+  [-8, -38], [8, -38], [0, -44], [-15, -40], [15, -42], [-6, -63], [6, -63], [-14, -61], [21, -60], [20, -80], [-22, -84], [0, -78], [10, -83], [-2, -50], [3, -56]]; // cuối danh sách là hậu viện
 const PHOTO = [
   { x: -4, z: -1.5, lx: 0, lz: -22 }, { x: 4.5, z: 0, lx: 0, lz: -22 }, { x: 8, z: 12, lx: 0, lz: 8 }, { x: -7, z: 13, lx: 0, lz: 8 }, { x: 12, z: 26, lx: 19, lz: 20 }, { x: 25, z: 22, lx: 19, lz: 20 },
   { x: -12, z: 25, lx: -19, lz: 20 }, { x: -11, z: 4, lx: -19, lz: -1 }, { x: -11, z: -5, lx: -19, lz: -1 }, { x: 0, z: 28, lx: 0, lz: 8 }, { x: 0, z: 41, lx: 0, lz: 34 }, { x: 12, z: -6, lx: 18, lz: -1 },
 ];
 const ROBES = ['#6f8db5', '#7a5a3f', '#efe6d2', '#d9b561', '#8e6aa8', '#d67f8e', '#4b9c94', '#a8392b', '#5b7f58', '#c8a07a', '#3f6aa0', '#b05e7d'];
-const SKINS = ['#efc7a0', '#e8bb92', '#dcae84', '#f2d0ae'];
+const SKINS = ['#efc7a0', '#e8bb92', '#dcae84', '#f2d0ae', '#c99468', '#a87450', '#f7dabf'];
 const HAIRS = ['#221813', '#2c1f18', '#35261c'];
 const SAY = {
   any: ['Cầu cho mẹ khoẻ', 'Mong thi đậu', 'Bình an cả nhà', 'Nam mô A Di Đà Phật', 'Cầu cho ba mau khoẻ', 'Mong năm nay an lành', 'Mong con ngoan, học tốt', 'Cả nhà sum họp', 'Chùa mát quá', 'Trời hôm nay đẹp ghê'],
@@ -1871,9 +1937,9 @@ function buildGuests() {
     const r = Math.random(), kind = r < .55 ? 'adult' : r < .8 ? 'elder' : 'child', female = Math.random() < .55;
     const style = kind === 'child' ? (female ? 'pony' : 'short') : kind === 'elder' ? (female ? 'bun' : 'short') : female ? pick(['bun', 'long', 'long', 'pony']) : 'short';
     const g = {
-      i, kind, female, style, on: false, x: 0, z: 0, y: 0, ry: rand(0, 6.28), fy: 0, state: 'idle', after: null, pose: 1, timer: 0, route: new Float32Array(10), rn: 0, ri: 0, walk: rand(0, 6), ph: rand(0, 6.28),
+      i, kind, female, style, on: false, x: 0, z: 0, y: 0, ry: rand(0, 6.28), fy: 0, state: 'idle', after: null, pose: 1, timer: 0, route: new Float32Array(16), rn: 0, ri: 0, walk: rand(0, 6), ph: rand(0, 6.28),
       s: kind === 'child' ? rand(.66, .76) : kind === 'elder' ? rand(.88, .96) : rand(.98, 1.08), sp: kind === 'elder' ? rand(1.1, 1.5) : kind === 'child' ? rand(2, 2.7) : rand(1.5, 2.1), hat: kind === 'elder' ? Math.random() < .4 : Math.random() < .12,
-      slot: -1, prog: 0, stuck: 0, lx: 0, lz: 0, group: false, leaveAt: 0, tilt: kind === 'elder' ? .14 : 0, skip: i % 3, chat: false,
+      w: kind === 'child' ? rand(.9, 1.12) : rand(.84, 1.24), slot: -1, prog: 0, stuck: 0, lx: 0, lz: 0, group: false, leaveAt: 0, tilt: kind === 'elder' ? .14 : 0, skip: i % 3, chat: false,
       bag: kind === 'adult' && Math.random() < .4, pack: kind === 'child' && Math.random() < .65, cane: kind === 'elder' && Math.random() < .55, offer: kind !== 'child' && Math.random() < .3,
     };
     Guests.list.push(g);
@@ -1897,24 +1963,38 @@ function buildGuests() {
   const host = $('#bubbles'); Guests.bubbles = [];
   for (let i = 0; i < 5; i++) { const el = document.createElement('div'); el.className = 'bub'; host.appendChild(el); Guests.bubbles.push({ el, g: null, left: 0 }); }
 }
+// Đi giữa sân trước và hậu viện thì vòng qua cổng phụ gần nhất
+function viaGap(fx, fz, tx, tz) {
+  const a = fz < -28.3, b = tz < -28.3; if (a === b) return [];
+  const sx = fx + tx >= 0 ? 20 : -20;
+  return a ? [sx, -33, sx, -23, sx, -11] : [sx, -11, sx, -23, sx, -33];
+}
+function goRoute(g, out, ...pts) { const fx = out.length ? out[0] : g.x, fz = out.length ? out[1] : g.z; setRoute(g, ...out, ...viaGap(fx, fz, pts[0], pts[1]), ...pts); }
 function setRoute(g, ...pts) { g.rn = pts.length >> 1; for (let i = 0; i < pts.length; i++) g.route[i] = pts[i]; g.ri = 0; g.state = 'go'; g.pose = 0; g.prog = 0; g.stuck = 0; }
 function pose(g, p, dur, fy) { g.state = 'still'; g.pose = p; g.timer = dur; g.fy = fy; }
 function freeSlot(g) { if (g.slot >= 0) { Guests.slotUsed[g.slot] = false; g.slot = -1; } }
 function guestNext(g, instant) {
   freeSlot(g); g.chat = false;
-  if (g.group && g.leaveAt && Game.t > g.leaveAt) { g.after = 'gone'; const sx = rand(-1.3, 1.3); setRoute(g, sx, 31, sx, 37, sx * 1.6, 50); return; }
-  const inHall = g.z < -11;
+  if (g.group && g.leaveAt && Game.t > g.leaveAt) { g.after = 'gone'; const sx = rand(-1.3, 1.3); setRoute(g, ...viaGap(g.x, g.z, sx, 31), sx, 31, sx, 37, sx * 1.6, 50); return; }
+  const inHall = g.z < -11 && g.z > -27.5;
   const out = inHall ? [g.x, -10.2] : [];
-  if (g.kind === 'child' && Math.random() < .28) { const a = rand(0, 6.28), R = POND.r + 1.05; g.after = 'pond'; g.lx = POND.x; g.lz = POND.z; setRoute(g, ...out, POND.x + Math.cos(a) * R, POND.z + Math.sin(a) * R); return; } // trẻ con chạy ra hồ xem cá
+  if (g.kind === 'child' && Math.random() < .28) { const a = rand(0, 6.28), R = POND.r + 1.05; const pd = Math.random() < .5 ? POND : POND2, R2 = pd.r + 1.05; g.after = 'pond'; g.lx = pd.x; g.lz = pd.z; goRoute(g, out, pd.x + Math.cos(a) * R2, pd.z + Math.sin(a) * R2); return; } // trẻ con chạy ra hồ xem cá
+  if (Math.random() < .2) {
+    const q = Math.random();
+    if (q < .4) { g.after = 'pray'; g.lx = QUANAM.x; g.lz = QUANAM.z; goRoute(g, out, QUANAM.x + rand(-2.6, 2.6), QUANAM.z + rand(4, 5.5)); }
+    else if (q < .7) { const a = rand(.3, 2.8), R2 = POND2.r + 1.05; g.after = 'pond'; g.lx = POND2.x; g.lz = POND2.z; goRoute(g, out, POND2.x + Math.cos(a) * R2, POND2.z + Math.sin(a) * R2); }
+    else { const x = -18 + (Math.random() * 7 | 0) * 6 + rand(-.6, .6); g.after = 'pray'; g.lx = x; g.lz = -92; goRoute(g, out, x, -84.2); }
+    return;
+  }
   const r = Math.random();
-  if (r < .34) { const w = pick(WANDER); g.after = 'idle'; setRoute(g, ...out, w[0] + rand(-1, 1), w[1] + rand(-1, 1)); }
-  else if (r < .52) { const x = rand(-12, 12), z = rand(-9.8, -7.6); g.after = 'pray'; g.lx = 0; g.lz = -24; setRoute(g, ...out, x, z); }
-  else if (r < .68) { const a = rand(0, 6.28), R = rand(2.65, 3.1); g.after = 'incense'; g.lx = 0; g.lz = 8; setRoute(g, ...out, Math.cos(a) * R, 8 + Math.sin(a) * R); }
+  if (r < .34) { const w = pick(WANDER); g.after = 'idle'; setRoute(g, ...out, ...viaGap(out.length ? out[0] : g.x, out.length ? out[1] : g.z, w[0], w[1]), w[0] + rand(-1, 1), w[1] + rand(-1, 1)); }
+  else if (r < .52) { const x = rand(-12, 12), z = rand(-9.8, -7.6); g.after = 'pray'; g.lx = 0; g.lz = -24; goRoute(g, out, x, z); }
+  else if (r < .68) { const a = rand(0, 6.28), R = rand(2.65, 3.1); g.after = 'incense'; g.lx = 0; g.lz = 8; goRoute(g, out, Math.cos(a) * R, 8 + Math.sin(a) * R); }
   else if (r < .84) {
     let s = -1; for (let i = 0, off = Math.random() * Seats.length | 0; i < Seats.length; i++) { const k = (i + off) % Seats.length; if (!Guests.slotUsed[k]) { s = k; break; } }
-    if (s >= 0) { Guests.slotUsed[s] = true; g.slot = s; g.after = 'sit'; g.lx = Seats[s][0]; g.lz = -30; setRoute(g, Seats[s][0], -10.2, Seats[s][0], Seats[s][1]); if (inHall) g.ri = 1; }
-    else { const w = pick(WANDER); g.after = 'idle'; setRoute(g, ...out, w[0], w[1]); }
-  } else { const p = pick(PHOTO); g.after = 'photo'; g.lx = p.lx; g.lz = p.lz; setRoute(g, ...out, p.x + rand(-1.2, 1.2), p.z + rand(-1.2, 1.2)); }
+    if (s >= 0) { Guests.slotUsed[s] = true; g.slot = s; g.after = 'sit'; g.lx = Seats[s][0]; g.lz = -30; setRoute(g, ...viaGap(g.x, g.z, Seats[s][0], -10.2), Seats[s][0], -10.2, Seats[s][0], Seats[s][1]); if (inHall) g.ri = 1; }
+    else { const w = pick(WANDER); g.after = 'idle'; goRoute(g, out, w[0], w[1]); }
+  } else { const p = pick(PHOTO); g.after = 'photo'; g.lx = p.lx; g.lz = p.lz; goRoute(g, out, p.x + rand(-1.2, 1.2), p.z + rand(-1.2, 1.2)); }
   if (instant && g.state === 'go' && Math.random() < .55) { // trạng thái đầu: một số khách đã đứng sẵn tại chỗ
     const last = g.rn - 1; g.x = g.route[last * 2]; g.z = g.route[last * 2 + 1]; g.y = groundY(g.x, g.z); g.ri = g.rn; arrive(g);
   }
@@ -1962,7 +2042,7 @@ function writeGuest(g, t) {
   else if (g.pose === 5) lean += .1 * Math.max(0, Math.sin(t * .9 + g.ph));
   else if (g.pose === 6) lean += .3;
   b.position.set(g.x, g.y + sitDrop + bob, g.z); b.rotation.set(0, g.ry, 0); b.scale.setScalar(g.s); b.updateMatrix();
-  f.position.copy(b.position); f.rotation.set(lean, g.ry, 0); f.scale.setScalar(g.s); f.updateMatrix();
+  f.position.copy(b.position); f.rotation.set(lean, g.ry, 0); f.scale.set(g.s * (g.w || 1), g.s, g.s * (g.w || 1)); f.updateMatrix();
   M.robe.setMatrixAt(g.i, f.matrix); M.trim.setMatrixAt(g.i, f.matrix);
   // Đầu: nhìn quanh khi đứng, gật gù khi trò chuyện, cúi khi lễ
   let look = 0, nod = 0;
@@ -2169,7 +2249,7 @@ const Net = {
     const d = p.presence || {};
     if (typeof d.x !== 'number' || typeof d.z !== 'number' || !isFinite(d.x) || !isFinite(d.z)) return; // chưa vào chùa
     let g = this.peers.get(p.peer);
-    const tx = clamp(d.x, -27.3, 27.3), tz = clamp(d.z, -27.3, 46);
+    const tx = clamp(d.x, -27.3, 27.3), tz = clamp(d.z, -91.3, 46);
     if (!g) {
       g = this.slots.find(s => !s.used); if (!g) return; // đã đủ chỗ hiển thị
       g.used = true; g.x = g.tx = tx; g.z = g.tz = tz; g.y = groundY(tx, tz); g.name = null; g.mood = ''; dropSprite(g.moodS); g.moodS = null; g.inc = null; g.bell = null; g.bellAt = 0;
@@ -2265,6 +2345,7 @@ const FAMILY_SAY = { // [0 = bà, 1 = bé, lời]
   gate: [[0, 'Qua cổng tam quan thì đi chậm lại nhé.'], [1, 'Sư tử đá kìa!']],
   monk: [[1, 'Chú tiểu đang quét sân kìa!'], [0, 'Chào thầy đi cháu.']],
   night: [[1, 'Đom đóm kìa bà ơi!'], [0, 'Tối rồi, đèn lồng sáng đẹp quá.']],
+  back: [[1, 'Mèo kìa bà ơi!'], [1, 'Cá trong ao to quá!'], [0, 'Tượng Quan Âm hiền từ quá.'], [0, 'Phóng sinh là tích phước đó con.'], [1, 'Nhiều tượng Phật quá bà ơi!']],
   tu: [[1, 'Đầu trọc có mát không ạ?'], [0, 'Tu cho tốt nhé con.'], [1, 'Con phải gọi là sư rồi hả?'], [0, 'Nhìn hiền hẳn ra.']],
   any: [[0, 'Đi chậm thôi cháu ơi.'], [1, 'Bà ơi đợi con với!'], [0, 'Chùa mát quá.'], [1, 'Con khát nước quá.'], [0, 'Lâu lắm mới lên chùa cả nhà.'], [1, 'Mai mình lại đi chùa nữa nha!']],
 };
@@ -2327,7 +2408,7 @@ function familyTalk(dt) {
   const P = Player, near = (x, z, r) => Math.hypot(P.x - x, P.z - z) < r;
   let key = 'any';
   if (near(POND.x, POND.z, 11)) key = 'pond'; else if (near(TREE.x, TREE.z, 9)) key = 'tree'; else if (near(BELL.x, BELL.z, 8)) key = 'bell';
-  else if (near(0, 8, 6)) key = 'burner'; else if (P.z < -11) key = 'hall'; else if (P.z > 30) key = 'gate';
+  else if (near(0, 8, 6)) key = 'burner'; else if (P.z < -28) key = 'back'; else if (P.z < -11) key = 'hall'; else if (P.z > 30) key = 'gate';
   else if (Monks.novice && near(Monks.novice.x, Monks.novice.z, 7)) key = 'monk'; else if (U.uNight.value > .6 && Math.random() < .5) key = 'night';
   if (key !== 'any' && Math.random() < .2) key = 'any';
   if (Store.data.ordain && Math.random() < .25) key = 'tu';
@@ -2401,7 +2482,7 @@ function updateMonks(dt, t) {
   // Thầy ngồi thiền trước ban thờ
   S.lean = .05 + Math.max(0, Math.sin(t * .4)) ** 4 * .12; // thỉnh thoảng cúi nhẹ
   placeNpc(S, dt, t, 0);
-  updatePhotographer(dt, t);
+  updatePhotographer(dt, t); updateCats(dt, t);
 }
 // Khách trong sân nghe chuông thì dừng lại chắp tay hướng về gác chuông
 function guestsReact(x, z) {
@@ -2811,6 +2892,368 @@ function finishMeditate(st) {
   $('#doneBtn').onclick = endActivity; $('#againBtn').onclick = () => { closeSheet(); startMeditate(); };
 }
 
+
+/* ===== HẬU VIỆN: cổng phụ, sân đình, nhà đình, ao phóng sinh có cá, tượng Quan Âm lộ thiên, vườn tượng Phật, Tam Thế Phật ===== */
+const POND2 = { x: -14, z: -72, r: 7.5 };
+const QUANAM = { x: 14, z: -70 };
+const RELEASE = { x: POND2.x, z: POND2.z + POND2.r + 1.25 };
+const QA_SPOT = { x: QUANAM.x, z: QUANAM.z + 4.7 };
+function grassTex() {
+  const t = canvasTex(256, 256, (c, w, h) => { c.fillStyle = '#5d7a3c'; c.fillRect(0, 0, w, h); for (let i = 0; i < 1500; i++) { c.fillStyle = `hsl(${rand(76, 102)},${rand(30, 46)}%,${rand(24, 40)}%)`; c.fillRect(rand(0, w), rand(0, h), rand(1, 3), rand(2, 6)); } });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+}
+function flatPlane(tex, w, d, x, z, y, rx, ry) {
+  const t = tex.clone(); t.repeat.set(rx, ry); t.needsUpdate = true;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ map: t })); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m;
+}
+// Hình tượng Phật dùng lại cho Tam Thế Phật, nhà đình và vườn tượng (đá xám hoặc vàng)
+function statueGeo(stone) {
+  const b = new Batch(); buildStatue(b, false); const g = b.geometry(); g.translate(0, -1.92, 24.3);
+  if (stone) { const c = g.attributes.color; for (let i = 0; i < c.count; i++) { const l = c.getX(i) * .3 + c.getY(i) * .59 + c.getZ(i) * .11, v = clamp(l * 1.25 + .16, 0, 1); c.setXYZ(i, v * .95, v * .94, v * .9); } }
+  return g;
+}
+function placeStatue(g, x, y, z, s, ry = 0) {
+  const m = new THREE.Mesh(g, World.statueMat || (World.statueMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+  m.position.set(x, y, z); m.scale.setScalar(s); m.rotation.y = ry; m.castShadow = true; m.receiveShadow = true; scene.add(m); return m;
+}
+function smallHalo(x, y, z, r) { const h = new THREE.Mesh(new THREE.RingGeometry(r * .85, r, 32), new THREE.MeshBasicMaterial({ color: '#f1c25b', side: THREE.DoubleSide })); h.position.set(x, y, z); scene.add(h); return h; }
+function buildBackyard(W, R, S) {
+  const stone = '#9c9384', sm = { smooth: true, jit: 0 };
+  // Nền: gạch, bãi cỏ hai bên, sân đình lát đá, lối đi
+  const bt = brickTex(), st = slabTex(), gt = grassTex();
+  flatPlane(bt, 56, 64, 0, -60, 0, 24, 27);
+  flatPlane(gt, 23, 40, -15.5, -68.5, .006, 6, 10); flatPlane(gt, 23, 40, 15.5, -68.5, .006, 6, 10);
+  flatPlane(st, 44, 14, 0, -40, .012, 15, 5);
+  for (const sg of [-1, 1]) flatPlane(st, 4, 5.4, sg * 20, -30.6, .014, 1.4, 2);
+  flatPlane(st, 8, 29, 0, -73.5, .012, 3, 10); flatPlane(st, 48, 3.5, 0, -83, .014, 16, 1.2);
+  // Hai cổng phụ sau chính điện dẫn vào hậu viện
+  for (const sg of [-1, 1]) {
+    const cx = sg * 20;
+    for (const o of [-2.15, 2.15]) { box(W, cx + o, 0, -28, .7, 3.3, .9, '#c9b48f'); box(W, cx + o, 3.3, -28, .9, .2, 1.1, '#8d3a25'); Col.box(cx + o - .4, cx + o + .4, -28.5, -27.5, 3.4); }
+    box(W, cx, 3.3, -28, 5, .45, 1, '#b9a684');
+    curvedRoof(R, cx, 3.75, -28, 3, 1.1, .9, { curl: .45, flare: .3, ridge: 2.2, rows: 3, seg: 8, ribTh: .09, tip: .55, ridgeTh: .16 });
+    addPlaque('Hậu Viện', cx, 2.75, -27.42, 2.3, .5, 0, 512, 112, 72); addPlaque('Sân Chùa', cx, 2.75, -28.58, 2.3, .5, Math.PI, 512, 112, 72);
+  }
+  // Nhà đình: nền đá cao, 12 cột, mái cong hai tầng, ban thờ nhỏ, trống đình
+  const D = DINH, wood = '#6b3320', woodD = '#4e2416';
+  box(W, D.x, 0, D.z, D.w * 2 + 1.6, .22, D.d * 2 + 1.6, '#a89a86'); box(W, D.x, 0, D.z, D.w * 2, .45, D.d * 2, stone);
+  for (const x of [-8, -4.8, -1.6, 1.6, 4.8, 8]) for (const z of [D.z + 4.4, D.z - 4.4]) { cyl(W, x, .45, z, .28, .31, 4, 10, wood, .02); cyl(W, x, .45, z, .44, .48, .26, 8, stone); Col.circle(x, z, .4); }
+  box(W, D.x, 4.4, D.z + 4.4, 17.2, .4, .4, woodD); box(W, D.x, 4.4, D.z - 4.4, 17.2, .4, .4, woodD);
+  for (const x of [-8, -1.6, 1.6, 8]) box(W, x, 4.4, D.z, .35, .38, 9.2, woodD);
+  box(W, D.x, 3.95, D.z + 4.45, 17, .14, .2, '#b8862c');
+  box(W, D.x, .45, D.z - 4.75, 16.4, 4, .35, '#8c3a26', 0, .03); Col.box(-8.3, 8.3, D.z - 5, D.z - 4.5, 4.5);
+  box(W, D.x, 4.8, D.z, 17.4, .1, 9.4, '#3b2015', 0, .02);
+  curvedRoof(R, D.x, 4.6, D.z, 11.2, 6.9, 1.5, { curl: .95, flare: .7, ridge: 8, ribTh: .17, rows: 4, seg: 20, tip: 1.05, ridgeTh: .05, pow: 1.1 });
+  box(W, D.x, 5.9, D.z, 14.4, 1.25, 6.4, '#6e2f1d', 0, .03);
+  curvedRoof(R, D.x, 6.15, D.z, 9.6, 5.2, 3.4, { curl: .95, flare: .65, pearl: .45, ridgeTh: .4, ribTh: .18, rows: 7, seg: 18, tip: 1.05 });
+  addPlaque('Đình An Lạc', D.x, 3.55, D.z + 4.68, 3.3, .78, 0, 600, 150, 84);
+  box(W, D.x, .45, D.z - 3.6, 4.4, .85, 1.3, '#6f2a1a', 0, .02); box(W, D.x, 1.3, D.z - 3.6, 4.6, .08, 1.45, '#b8862c', 0, .02); Col.box(-2.3, 2.3, D.z - 4.3, D.z - 2.9, 1.4);
+  // Trống đình
+  const dx = 6.2, dz = D.z - 1.6;
+  for (const o of [-.55, .55]) box(W, dx + o, .45, dz, .12, 1.25, .12, '#7a2e1c');
+  W.add(new THREE.CylinderGeometry(.62, .62, .85, 16), '#a5301f', TRS(dx, 1.5, dz, 0, 1, 1, 1, 0, Math.PI / 2), sm);
+  for (const o of [-.43, .43]) W.add(new THREE.CylinderGeometry(.6, .6, .02, 16), '#e8d6ae', TRS(dx + o, 1.5, dz, 0, 1, 1, 1, 0, Math.PI / 2), sm);
+  Col.circle(dx, dz, .85);
+  // Chậu cây cảnh quanh sân đình
+  for (const x of [-18, -12, 12, 18]) for (const z of [-34.5, -45.5]) { cyl(W, x, 0, z, .5, .36, .55, 8, '#7a6a5a'); blob(W, x, 1.15, z, .62, '#4f7a35', .9, 1, .1); for (let i = 0; i < 4; i++) blob(W, x + rand(-.4, .4), rand(1.1, 1.55), z + rand(-.4, .4), .08, '#f29a3c', 1, 1, 0, 0); Col.circle(x, z, .55); }
+  // Cột đèn lồng ở bốn góc sân đình, đèn dưới hiên đình
+  for (const [x, z] of [[-12, -33.5], [12, -33.5], [-12, -46.5], [12, -46.5], [-4.5, -62], [4.5, -62], [-4.5, -80], [4.5, -80]]) {
+    const ax = x + (x < 0 ? .7 : -.7); cyl(W, x, 0, z, .07, .1, 3.1, 6, '#4e2e1c', .03); cyl(W, x, 0, z, .17, .24, .16, 6, '#8c8071'); beam(W, x, 3.05, z, ax, 3.05, z, .07, '#4e2e1c');
+    LANTERN_SPOTS.push([ax, 2.65, z, 1]); Col.circle(x, z, .2);
+  }
+  for (const x of [-6.4, -2.2, 2.2, 6.4]) { beam(W, x, 4.4, D.z + 4.7, x, 3.9, D.z + 4.7, .03, '#3a2a1c'); LANTERN_SPOTS.push([x, 3.55, D.z + 4.7, 1.12]); }
+  // Ao phóng sinh
+  const P2 = POND2;
+  for (let i = 0; i < 46; i++) { const a = i / 46 * 6.283, rr = P2.r + rand(-.05, .18); blob(W, P2.x + Math.cos(a) * rr, .12, P2.z + Math.sin(a) * rr, rand(.45, .7), i % 3 ? '#8a7f6e' : '#9d9281', .55, 1, .08, 0); }
+  const w2 = new THREE.ShaderMaterial({ uniforms: { uT: U.uT, uA: World.water.uniforms.uA, uB: World.water.uniforms.uB, uGlow: U.uGlow }, vertexShader: World.water.vertexShader, fragmentShader: World.water.fragmentShader });
+  const wm = new THREE.Mesh(new THREE.CircleGeometry(P2.r + .1, 40), w2); wm.rotation.x = -Math.PI / 2; wm.position.set(P2.x, .1, P2.z); scene.add(wm);
+  for (let i = 0; i < 14; i++) {
+    const a = rand(0, 6.28), d = Math.sqrt(Math.random()) * (P2.r - 1.2), lx = P2.x + Math.cos(a) * d, lz = P2.z + Math.sin(a) * d, s = rand(.42, .75);
+    W.add(new THREE.CylinderGeometry(s, s, .03, 9, 1, false, .4, 5.7), i % 2 ? '#47803f' : '#3a7038', TRS(lx, .14, lz, rand(0, 6)), { jit: .08 });
+  }
+  Col.circle(P2.x, P2.z, P2.r + .35);
+  box(W, P2.x - 5.4, 0, P2.z + P2.r + 1.1, 1.9, .3, .6, stone); box(W, P2.x - 5.4, .3, P2.z + P2.r + 1.1, 1.6, 1.25, .26, '#8c8274');
+  addPlaque('Ao Phóng Sinh', P2.x - 5.4, 1.05, P2.z + P2.r + 1.25, 1.5, .4, 0, 600, 150, 78); Col.circle(P2.x - 5.4, P2.z + P2.r + 1.1, .9);
+  // Tượng Quan Thế Âm lộ thiên
+  buildQuanAm(W, S, QUANAM.x, QUANAM.z);
+  // Tượng Phật: Tam Thế Phật trong chánh điện, một tượng trong nhà đình, bảy tượng đá ở vườn tượng
+  const gold = statueGeo(false), stoneG = statueGeo(true);
+  for (const sg of [-1, 1]) { placeStatue(gold, sg * 3.95, 1.57, -23.4, .5, -sg * .12); smallHalo(sg * 3.95, 1.57 + 2.65 * .5 * 1.9 / 1.9 + .2, -23.85, .5); }
+  placeStatue(gold, D.x, 1.38, D.z - 3.65, .3);
+  for (let k = 0; k < 7; k++) {
+    const x = -18 + k * 6, z = -87.6;
+    box(W, x, 0, z, 2.6, .25, 2.6, '#8c8071'); box(W, x, .25, z, 2.2, .85, 2.2, stone); placeStatue(stoneG, x, 1.1, z, .52);
+    Col.box(x - 1.3, x + 1.3, z - 1.3, z + 1.3);
+  }
+  addPlaque('Vườn Tượng Phật', 0, 1.2, -84.86, 2.6, .55, 0, 800, 170, 76); box(W, 0, 0, -85, 2.8, 1.5, .2, '#8c8274'); Col.box(-1.5, 1.5, -85.2, -84.8);
+  // Cây trong hậu viện
+  for (const [x, z, h, k] of [[-24.5, -33, 8, 1], [24.5, -33, 8, 1], [-22, -41, 12, 0], [24, -44, 9, 0], [-25, -55, 8, 1], [25, -56, 8, 1], [-25, -89, 9, 2], [25, -89, 9, 2], [24.5, -78, 9, 0], [-4.5, -66, 6, 1], [4.5, -66, 6, 1], [-25, -66, 7, 1], [8, -89, 6, 1], [-8, -89, 6, 1]]) tree(W, x, z, h, k);
+  for (const [x, z] of [[-20, -44], [21, -38], [6, -68], [-6, -77]]) { box(W, x, .42, z, 2.2, .14, .7, '#9d9281'); box(W, x - .8, 0, z, .3, .42, .55, '#7c7263'); box(W, x + .8, 0, z, .3, .42, .55, '#7c7263'); Col.box(x - 1.15, x + 1.15, z - .4, z + .4); }
+}
+// Quan Âm đứng trên toà sen, tay trái ôm bình cam lộ, tay phải cầm cành dương liễu
+function buildQuanAm(W, S, x, z) {
+  const white = '#f1ece2', shade = '#ddd5c7', sm = { smooth: true, jit: 0 };
+  const lathe = (pts, c, m, seg = 22) => S.add(new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg), c, m, sm);
+  cyl(W, x, 0, z, 2.6, 2.85, .45, 8, '#9c9384'); box(W, x, .45, z, 3.6, 1.45, 3.6, '#b0a796'); box(W, x, 1.9, z, 4, .3, 4, '#9c9384');
+  addPlaque('Quan Thế Âm Bồ Tát', x, 1.17, z + 1.815, 3, .55, 0, 900, 168, 84);
+  Col.circle(x, z, 2.85);
+  const y0 = 2.2;
+  lathe([[0, 0], [1.45, 0], [1.6, .14], [1.28, .38], [0, .38]], '#e7dfd0', TRS(x, y0, z));
+  for (let r = 0; r < 2; r++) for (let i = 0; i < 12; i++) { const a = (i + r * .5) / 12 * Math.PI * 2, R = r ? 1.22 : 1.5; S.add(new THREE.SphereGeometry(1, 10, 8), r ? '#f6e4e2' : '#efd9d6', TRS(x + Math.sin(a) * R, y0 + (r ? .42 : .2), z + Math.cos(a) * R, a, .3, .32, .16, r ? -.5 : -.8), sm); }
+  const yb = y0 + .38;
+  lathe([[0, 0], [.92, 0], [.98, .25], [.84, 1.2], [.7, 2.2], [.68, 2.9], [.6, 3.4], [.4, 3.72], [.2, 3.82], [0, 3.83]], white, TRS(x, yb, z, 0, 1, 1, .8));
+  S.add(new THREE.CapsuleGeometry(.6, 2.7, 4, 12), shade, TRS(x, yb + 2.45, z - .3, 0, 1.08, 1, .45), sm); // khăn choàng sau lưng
+  const yh = yb + 4.2;
+  S.add(new THREE.CylinderGeometry(.17, .22, .35, 12), white, TRS(x, yb + 3.85, z), sm);
+  S.add(new THREE.SphereGeometry(.42, 18, 14), '#f6f0e6', TRS(x, yh, z, 0, .92, 1.06, .95), sm);
+  S.add(new THREE.SphereGeometry(.5, 16, 12, 0, Math.PI * 2, 0, Math.PI * .6), white, TRS(x, yh + .04, z - .06, 0, 1, 1.05, 1, -.4), sm); // khăn trùm đầu
+  S.add(new THREE.CapsuleGeometry(.36, .8, 4, 10), white, TRS(x, yh - .5, z - .2, 0, 1.25, 1, .45), sm);
+  S.add(new THREE.CylinderGeometry(.16, .24, .24, 8), '#e9d9a6', TRS(x, yh + .5, z + .04), sm); S.add(new THREE.SphereGeometry(.07, 8, 6), '#e9c46a', TRS(x, yh + .66, z + .04), sm);
+  for (const sg of [-1, 1]) beam(S, x + sg * .07, yh + .02, z + .385, x + sg * .2, yh + .03, z + .35, .022, '#8a7a66', 0);
+  S.add(new THREE.SphereGeometry(.026, 6, 6), '#d9867a', TRS(x, yh + .16, z + .4), sm);
+  beam(S, x - .06, yh - .2, z + .38, x + .06, yh - .2, z + .38, .018, '#c98a7a', 0);
+  const cap = (a, b, r) => { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), len = A.distanceTo(B), m = new THREE.Matrix4().lookAt(A, B, new THREE.Vector3(0, 1, 0)); m.scale(new THREE.Vector3(r, r, len / 2 + r * .6)); m.setPosition((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); S.add(new THREE.SphereGeometry(1, 12, 8), white, m, sm); };
+  cap([x - .62, yb + 3.45, z], [x - .6, yb + 2.7, z + .3], .17); cap([x - .6, yb + 2.7, z + .3], [x - .12, yb + 2.75, z + .62], .14);
+  S.add(new THREE.SphereGeometry(.1, 8, 6), '#f6f0e6', TRS(x - .1, yb + 2.78, z + .66), sm);
+  lathe([[0, 0], [.1, .02], [.13, .14], [.06, .3], [.04, .42], [.07, .47], [0, .47]], '#e8f0f2', TRS(x - .05, yb + 2.62, z + .72), 12); // bình cam lộ
+  cap([x + .62, yb + 3.45, z], [x + .72, yb + 2.85, z + .28], .17); cap([x + .72, yb + 2.85, z + .28], [x + .55, yb + 3.5, z + .6], .14);
+  S.add(new THREE.SphereGeometry(.1, 8, 6), '#f6f0e6', TRS(x + .55, yb + 3.55, z + .62), sm);
+  beam(S, x + .55, yb + 3.6, z + .64, x + .62, yb + 4.35, z + .72, .025, '#5c7a3c', 0);
+  for (let i = 0; i < 6; i++) S.add(new THREE.SphereGeometry(.06, 5, 4), '#6f9a48', TRS(x + .57 + rand(-.08, .12), yb + 3.85 + i * .09, z + .68 + rand(-.05, .08), 0, .5, 1.4, .5, 0, rand(-.6, .6)));
+  const halo = new THREE.Mesh(new THREE.RingGeometry(.72, .84, 40), new THREE.MeshBasicMaterial({ color: '#f1c25b', side: THREE.DoubleSide })); halo.position.set(x, yh + .1, z - .62); scene.add(halo);
+}
+
+/* ----- Cá trong hai ao: bơi lượn, thả thêm khi phóng sinh ----- */
+const Koi = { list: [], mesh: null };
+const KOI_MAX = 80, KOI_COLS = ['#f0662a', '#f4f0e6', '#e8a33a', '#d8402a', '#f7d27a', '#ff8a4a', '#f4f0e6'];
+function buildKoi() {
+  const b = new Batch(), sm = { smooth: true, jit: 0 };
+  b.add(new THREE.SphereGeometry(.5, 10, 7), '#ffffff', TRS(0, 0, 0, 0, .15, .06, .42), sm);
+  b.add(new THREE.ConeGeometry(.12, .2, 4), '#ffffff', TRS(0, 0, -.27, 0, 1, .25, 1, -Math.PI / 2), { jit: 0 });
+  for (const sg of [-1, 1]) b.add(new THREE.ConeGeometry(.05, .12, 3), '#ffffff', TRS(sg * .09, 0, .05, 0, 1, .2, 1, Math.PI / 2, sg * 1.1), { jit: 0 });
+  Koi.geo = b.geometry();
+  const m = Koi.mesh = new THREE.InstancedMesh(Koi.geo, new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: .86, depthWrite: false }), KOI_MAX);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.renderOrder = 1; scene.add(m);
+  const Z = new THREE.Matrix4().makeScale(0, 0, 0), c = new THREE.Color('#fff'); for (let i = 0; i < KOI_MAX; i++) { m.setMatrixAt(i, Z); m.setColorAt(i, c); }
+  for (let i = 0; i < 14; i++) addKoi(POND); for (let i = 0; i < 24; i++) addKoi(POND2);
+}
+function pickKoiTarget(k) { const a = rand(0, 6.28), d = Math.sqrt(Math.random()) * (k.pond.r - 1.4); k.tx = k.pond.x + Math.cos(a) * d; k.tz = k.pond.z + Math.sin(a) * d; }
+function addKoi(pond, x, z, col) {
+  let i = Koi.list.length;
+  if (i >= KOI_MAX) { const old = Koi.list.findIndex(k => k.pond === POND2); i = Koi.list[old].i; Koi.list.splice(old, 1); } // ao đầy thì con thả lâu nhất nhường chỗ
+  const a = rand(0, 6.28), d = Math.sqrt(Math.random()) * (pond.r - 1.3);
+  const k = { i, pond, x: x ?? pond.x + Math.cos(a) * d, z: z ?? pond.z + Math.sin(a) * d, ry: rand(0, 6.28), sp: rand(.3, .65), boost: 0, ph: rand(0, 6), s: rand(.8, 1.25), tx: 0, tz: 0 };
+  pickKoiTarget(k); Koi.list.push(k); Koi.mesh.setColorAt(i, new THREE.Color(col || pick(KOI_COLS))); Koi.mesh.instanceColor.needsUpdate = true; return k;
+}
+function updateKoi(dt, t) {
+  if (!Koi.mesh) return; const o = World.dummy;
+  for (const k of Koi.list) {
+    const dx = k.tx - k.x, dz = k.tz - k.z;
+    if (dx * dx + dz * dz < .3) pickKoiTarget(k);
+    k.ry = dampAngle(k.ry, Math.atan2(dx, dz), 1.4 + k.boost * 2, dt);
+    const sp = k.sp * (1 + k.boost * 2.4); k.boost = Math.max(0, k.boost - dt * .35);
+    k.x += Math.sin(k.ry) * sp * dt; k.z += Math.cos(k.ry) * sp * dt;
+    const ex = k.x - k.pond.x, ez = k.z - k.pond.z, ed = Math.hypot(ex, ez), lim = k.pond.r - .75;
+    if (ed > lim) { k.x = k.pond.x + ex / ed * lim; k.z = k.pond.z + ez / ed * lim; pickKoiTarget(k); }
+    o.position.set(k.x, .118, k.z); o.rotation.set(0, k.ry + Math.sin(t * (6 + k.boost * 9) + k.ph) * .15, 0); o.scale.setScalar(k.s); o.updateMatrix(); Koi.mesh.setMatrixAt(k.i, o.matrix);
+  }
+  Koi.mesh.instanceMatrix.needsUpdate = true;
+}
+function ripple(x, z, delay = 0) {
+  setTimeout(() => {
+    const m = new THREE.Mesh(World.rippleGeo || (World.rippleGeo = new THREE.RingGeometry(.3, .36, 28).rotateX(-Math.PI / 2)), new THREE.MeshBasicMaterial({ color: '#fff8e8', transparent: true, opacity: .8, depthWrite: false }));
+    m.position.set(x, .13, z); scene.add(m);
+    tween(1.4, k => { m.scale.setScalar(1 + k * 6); m.material.opacity = .8 * (1 - k); }).then(() => { scene.remove(m); m.material.dispose(); });
+  }, delay);
+}
+
+/* ----- HOẠT ĐỘNG: THẢ CÁ PHÓNG SINH ở ao hậu viện ----- */
+const FISH_KINDS = [{ n: 'Cá chép đỏ', c: '#d8402a' }, { n: 'Cá chép vàng', c: '#e8a33a' }, { n: 'Cá koi trắng', c: '#f4f0e6' }];
+function makeBowl() {
+  const g = new THREE.Group(), b = new Batch(), sm = { smooth: true, jit: 0 };
+  b.add(new THREE.LatheGeometry([[0, 0], [.1, 0], [.2, .05], [.25, .17], [.23, .18], [.18, .07], [0, .05]].map(p => new THREE.Vector2(p[0], p[1])), 16), '#eef3f6', null, sm);
+  b.add(new THREE.TorusGeometry(.235, .012, 4, 18), '#3f6aa0', TRS(0, .16, 0, 0, 1, 1, 1, Math.PI / 2), sm);
+  b.add(new THREE.CylinderGeometry(.21, .21, .01, 16), '#6fa7c8', TRS(0, .14, 0));
+  g.add(new THREE.Mesh(b.geometry(), chibiMat()));
+  const f = new THREE.Mesh(Koi.geo, new THREE.MeshLambertMaterial({ color: '#d8402a' })); f.position.set(0, .155, 0); f.scale.setScalar(.6); g.add(f); g.fish = f;
+  g.position.set(0, .95, .42); return g;
+}
+function actRelease() {
+  beginActivity(); const id = Game.actId;
+  (async () => {
+    await walkTo(RELEASE.x, RELEASE.z, 3.2); if (id !== Game.actId) return;
+    Player.vx = Player.vz = 0; faceTo(POND2.x, POND2.z);
+    focusOn(RELEASE.x, .3, RELEASE.z - 1.4, .62, .55, 6.4);
+    releaseMenu();
+  })();
+}
+function releaseMenu() {
+  openSheet(`<h2 class="sheet-title">Thả cá phóng sinh</h2><p class="sheet-sub">Chọn một chú cá trong thau nước, thả về ao cho cá được bơi tự do.</p>
+    <div class="choice" id="fishChoice">${FISH_KINDS.map((f, i) => `<button data-f="${i}"><span style="display:inline-block;width:26px;height:12px;border-radius:50%;background:${f.c};border:1px solid #0002"></span><br>${f.n}</button>`).join('')}</div>
+    <button class="btn ghost wide" id="cancelBtn">Để sau</button>`);
+  $('#fishChoice').onclick = e => { const b = e.target.closest('button'); if (b) releaseFish(FISH_KINDS[+b.dataset.f]); };
+  $('#cancelBtn').onclick = endActivity;
+}
+async function releaseFish(kind) {
+  closeSheet(); const id = Game.actId, P = Player, ok = () => id === Game.actId;
+  const bowl = World.bowl || (World.bowl = makeBowl()); P.chibi.body.add(bowl); bowl.visible = true; bowl.fish.visible = true; bowl.fish.material.color.set(kind.c);
+  P.pose = 'pray'; P.leanT = .06; Game.famPose = 'pray';
+  caption('Nguyện cho cá được tự do, sống an lành', 2400); zenBell(.2); await wait(2300); if (!ok()) return;
+  P.pose = 'kneel'; P.leanT = .5; await wait(900); if (!ok()) return;
+  // Cá nhảy khỏi thau, vẽ một đường cong rồi rơi xuống ao
+  const from = new THREE.Vector3(); bowl.fish.getWorldPosition(from); bowl.fish.visible = false;
+  const fx = from.x + Math.sin(P.ry) * 1.9, fz = from.z + Math.cos(P.ry) * 1.9;
+  const fly = new THREE.Mesh(Koi.geo, new THREE.MeshLambertMaterial({ color: kind.c })); scene.add(fly);
+  await tween(.75, k => { fly.position.set(lerp(from.x, fx, k), lerp(from.y, .12, k) + Math.sin(k * Math.PI) * .8, lerp(from.z, fz, k)); fly.rotation.set(-Math.PI / 2 * (k * 1.4 - .4), P.ry, 0); });
+  scene.remove(fly); fly.material.dispose();
+  Snd.splash(.5); ripple(fx, fz); ripple(fx, fz, 260); vibrate(25);
+  const k = addKoi(POND2, fx, fz, kind.c); k.ry = P.ry; k.boost = 1.4; k.s = 1.15;
+  Store.data.released = (Store.data.released || 0) + 1; Store.save();
+  await wait(1100); if (!ok()) return;
+  bowl.visible = false; P.leanT = 0; P.pose = 'pray'; caption('Nam mô A Di Đà Phật', 1600); await wait(1400); if (!ok()) return;
+  P.pose = 'idle'; Game.famPose = null;
+  openSheet(`<h2 class="sheet-title">Cá đã về với nước</h2><p class="praise">${kind.n} quẫy đuôi bơi ra giữa ao. Mong lòng bạn cũng nhẹ nhàng, thong dong như vậy.</p>
+    <p class="small" style="text-align:center;margin:-6px 0 12px">Bạn đã phóng sinh ${Store.data.released} chú cá.</p>${resultButtons('againBtn', 'Thả thêm một chú')}`);
+  $('#doneBtn').onclick = endActivity; $('#againBtn').onclick = releaseMenu;
+  if (Family.list[1]?.on) setTimeout(() => say(Family.list[1], pick(['Cá bơi đi rồi kìa!', 'Tạm biệt cá nha!'])), 600);
+}
+
+/* ----- HOẠT ĐỘNG: LỄ QUAN ÂM trước tượng lộ thiên ----- */
+const QA_WISH = ['Mong Mẹ Quan Âm che chở cả nhà bình an.', 'Nguyện lòng từ bi như nước cam lồ, tưới mát mọi phiền muộn.', 'Mong người thân đi xa được bình yên trở về.', 'Mong mình biết thương người, thương cả chính mình.'];
+async function actQuanAm() {
+  beginActivity(); const id = Game.actId, P = Player, ok = () => id === Game.actId;
+  focusOn(QUANAM.x, 3.4, QUANAM.z + 3.4, .5, .12, 10);
+  await walkTo(QA_SPOT.x, QA_SPOT.z, 3); if (!ok()) return;
+  P.x = QA_SPOT.x; P.z = QA_SPOT.z; P.vx = P.vz = 0; faceTo(QUANAM.x, QUANAM.z); Game.famPose = 'kneel';
+  P.pose = 'kneel'; P.leanT = 0; caption('Nam mô Đại Từ Đại Bi Quan Thế Âm Bồ Tát', 2400); zenBell(.26, 330); await wait(2200);
+  for (let i = 1; i <= 3; i++) { if (!ok()) return; caption(`Lạy thứ ${i}`, 1900); P.leanT = 1.05; await wait(1300); if (!ok()) return; P.leanT = 0; await wait(1100); }
+  if (!ok()) return;
+  Store.data.quanam = (Store.data.quanam || 0) + 1; Store.save(); caption(''); Game.famPose = 'pray'; P.pose = 'pray';
+  openSheet(`<h2 class="sheet-title">Lễ Quan Âm</h2><div class="card"><p>“${pick(QA_WISH)}”</p></div><p class="small" style="text-align:center;margin:-4px 0 12px">Bạn đã lễ Quan Âm ${Store.data.quanam} lần.</p>${resultButtons('againBtn', 'Lễ thêm')}`);
+  $('#doneBtn').onclick = endActivity; $('#againBtn').onclick = () => { closeSheet(); endActivity(); actQuanAm(); };
+}
+
+/* ----- MÈO CHÙA: đi dạo, ngồi liếm lông, nằm ngủ, tò mò lại gần; vuốt thì kêu rừ rừ ----- */
+const CATS_DEF = [
+  { name: 'Mướp', fur: '#e0954a', dark: '#b8692a', belly: '#f6e3c6', eye: '#7aa83a', stripes: true, area: [-12, 12, -10, 4], x: 7, z: -8 },
+  { name: 'Mun', fur: '#2b2522', dark: '#1c1816', belly: '#f2ece2', eye: '#e0c040', socks: true, area: [-14, 14, -47, -33], x: -4, z: -40 },
+  { name: 'Tam Thể', fur: '#f4efe6', dark: '#2b2522', belly: '#faf6ee', eye: '#c08a3a', patches: true, area: [-24, -6, -63, -50], x: -16, z: -58 },
+  { name: 'Xám', fur: '#8d8a86', dark: '#5f5c59', belly: '#dcd8d2', eye: '#5aa0b0', stripes: true, area: [9, 25, 10, 27], x: 14, z: 25, lazy: true },
+];
+const Cats = { list: [], near: null };
+function buildCat(d) {
+  const g = new THREE.Group(), body = new THREE.Group(), head = new THREE.Group(), tail = new THREE.Group(), mat = chibiMat(), sm = { smooth: true, jit: 0 };
+  g.add(body);
+  const B = new Batch();
+  B.add(new THREE.SphereGeometry(1, 12, 9), d.fur, TRS(0, .27, 0, 0, .17, .15, .33), sm);
+  B.add(new THREE.SphereGeometry(1, 10, 7), d.belly, TRS(0, .21, .05, 0, .13, .09, .26), sm);
+  for (const [lx, lz] of [[-.09, .19], [.09, .19], [-.09, -.19], [.09, -.19]]) { B.add(new THREE.CylinderGeometry(.042, .036, .2, 6), d.fur, TRS(lx, .1, lz), sm); B.add(new THREE.SphereGeometry(.042, 6, 5), d.socks ? '#f2ece2' : d.belly, TRS(lx, .02, lz + .015, 0, 1, .6, 1.2), sm); }
+  if (d.stripes) for (const k of [-.18, -.08, .02, .12]) B.add(new THREE.BoxGeometry(.24, .02, .04), d.dark, TRS(0, .415, k), { jit: 0 });
+  if (d.patches) { B.add(new THREE.SphereGeometry(.1, 8, 6), '#e0954a', TRS(.06, .38, -.1, 0, 1, .55, 1.4), sm); B.add(new THREE.SphereGeometry(.08, 8, 6), '#2b2522', TRS(-.07, .39, .08, 0, 1, .5, 1.2), sm); }
+  body.add(new THREE.Mesh(B.geometry(), mat));
+  head.position.set(0, .4, .3); body.add(head);
+  const H = new Batch();
+  H.add(new THREE.SphereGeometry(.14, 12, 10), d.fur, TRS(0, 0, 0, 0, 1.12, .95, 1), sm);
+  H.add(new THREE.SphereGeometry(.07, 8, 6), d.belly, TRS(0, -.05, .1, 0, 1.15, .72, .8), sm);
+  for (const sg of [-1, 1]) {
+    H.add(new THREE.ConeGeometry(.058, .11, 4), d.patches && sg > 0 ? '#e0954a' : d.fur, TRS(sg * .085, .135, -.01, 0, 1, 1, .55, 0, -sg * .28), sm);
+    H.add(new THREE.ConeGeometry(.03, .065, 4), '#e8a0a0', TRS(sg * .083, .128, .012, 0, 1, 1, .4, 0, -sg * .28), sm);
+    H.add(new THREE.BoxGeometry(.13, .004, .004), '#f8f8f4', TRS(sg * .11, -.045, .11, 0, 1, 1, 1, 0, sg * .12), { jit: 0 });
+  }
+  if (d.stripes) H.add(new THREE.BoxGeometry(.03, .02, .1), d.dark, TRS(0, .14, .02), { jit: 0 });
+  H.add(new THREE.SphereGeometry(.016, 6, 5), '#e58a8a', TRS(0, -.02, .148), sm);
+  head.add(new THREE.Mesh(H.geometry(), mat));
+  const E = new Batch(); for (const sg of [-1, 1]) { E.add(new THREE.SphereGeometry(.025, 8, 6), d.eye, TRS(sg * .055, 0, 0, 0, 1, 1.15, .5), sm); E.add(new THREE.SphereGeometry(.011, 5, 4), '#111', TRS(sg * .055, 0, .012, 0, .6, 1.4, .5), sm); }
+  const eyes = new THREE.Mesh(E.geometry(), mat); eyes.position.set(0, .03, .118); head.add(eyes);
+  tail.position.set(0, .3, -.3); body.add(tail);
+  const T = new Batch(), tg = new THREE.CapsuleGeometry(.03, .34, 3, 6); tg.translate(0, .2, 0); T.add(tg, d.fur, null, sm); T.add(new THREE.SphereGeometry(.035, 6, 5), d.dark, TRS(0, .4, 0), sm);
+  tail.add(new THREE.Mesh(T.geometry(), mat));
+  const sh = shadowDisc(); sh.scale.setScalar(.48); g.add(sh);
+  g.scale.setScalar(1.1); scene.add(g);
+  return { d, g, body, head, tail, eyes, x: d.x, z: d.z, y: 0, ry: rand(0, 6.28), s: .5, on: true, state: 'sit', timer: rand(2, 6), tx: d.x, tz: d.z, walkT: 0, meowCD: rand(6, 16), blink: rand(1, 4), prog: 0, px: d.x, pz: d.z };
+}
+function buildCats() {
+  for (const d of CATS_DEF) Cats.list.push(buildCat(d));
+  Cats.list[3].state = 'sleep'; Cats.list[3].timer = 30;
+}
+function catChoose(c) {
+  const P = Player, a = c.d.area, dP = Math.hypot(P.x - c.x, P.z - c.z), night = U.uNight.value > .6;
+  const r = Math.random();
+  if (dP < 6 && !Game.busy && r < .3) { const ang = Math.atan2(c.x - P.x, c.z - P.z); c.tx = P.x + Math.sin(ang) * 1.1; c.tz = P.z + Math.cos(ang) * 1.1; c.state = 'walk'; c.timer = 8; return; } // tò mò lại gần
+  if (r < (c.d.lazy || night ? .35 : .55)) { c.tx = rand(a[0], a[1]); c.tz = rand(a[2], a[3]); c.state = 'walk'; c.timer = 12; }
+  else if (r < (c.d.lazy || night ? .55 : .82)) { c.state = 'sit'; c.timer = rand(4, 9); }
+  else { c.state = 'sleep'; c.timer = rand(14, 30); }
+}
+function updateCats(dt, t) {
+  const P = Player; let best = null, bd = 1e9;
+  for (const c of Cats.list) {
+    let sp = 0;
+    if (c.state !== 'pet') {
+      c.timer -= dt;
+      if (c.state === 'walk') {
+        const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
+        if (d < .25 || c.timer <= 0) { c.state = 'sit'; c.timer = rand(3, 7); }
+        else {
+          sp = c.d.lazy ? .38 : .55; const o = Col.resolve(c.x + dx / d * sp * dt, c.z + dz / d * sp * dt, .22); c.x = o.x; c.z = o.z;
+          c.ry = dampAngle(c.ry, Math.atan2(dx, dz), 5, dt); c.walkT += dt * 9;
+          c.prog += dt; if (c.prog > 1) { if (Math.hypot(c.x - c.px, c.z - c.pz) < .15) { c.state = 'sit'; c.timer = rand(2, 4); } c.px = c.x; c.pz = c.z; c.prog = 0; }
+        }
+      } else if (c.timer <= 0) catChoose(c);
+    }
+    const dP = Math.hypot(P.x - c.x, P.z - c.z);
+    // Thỉnh thoảng kêu meo khi người chơi ở gần
+    c.meowCD -= dt;
+    if (dP < 6 && c.meowCD <= 0 && c.state !== 'sleep' && !Rhythm.active) { c.meowCD = rand(12, 26); Snd.meow(.3 * (1 - dP / 7)); if (Math.random() < .5) say(c, pick(['Meo~', 'Meo meo!', 'Meooo…'])); }
+    if (c.state === 'sleep' && dP < 5 && Math.random() < dt * .04) say(c, 'Zzz…');
+    // Dáng: đi, ngồi, nằm cuộn tròn, được vuốt
+    const sleeping = c.state === 'sleep', sitting = c.state === 'sit' || c.state === 'pet';
+    c.body.rotation.x = damp(c.body.rotation.x, sitting ? -.42 : 0, 6, dt);
+    c.body.position.y = damp(c.body.position.y, sleeping ? -.07 : sitting ? .05 : Math.abs(Math.sin(c.walkT)) * .02 * (sp > 0), 6, dt);
+    c.body.scale.y = damp(c.body.scale.y, sleeping ? .72 : 1, 5, dt);
+    const look = !sleeping && dP < 4 ? clamp(wrapAngle(Math.atan2(P.x - c.x, P.z - c.z) - c.ry), -1, 1) : Math.sin(t * .4 + c.d.x) * .3;
+    c.head.rotation.y = dampAngle(c.head.rotation.y, look, 4, dt);
+    c.head.rotation.x = damp(c.head.rotation.x, sleeping ? .55 : c.state === 'pet' ? -.35 : sitting ? .25 : 0, 5, dt);
+    c.head.rotation.z = c.state === 'pet' ? Math.sin(t * 2.2) * .18 : damp(c.head.rotation.z, 0, 5, dt);
+    c.tail.rotation.x = damp(c.tail.rotation.x, sleeping ? -1.45 : sitting ? -1.2 : -.5, 4, dt);
+    c.tail.rotation.z = sleeping ? damp(c.tail.rotation.z, 1.3, 3, dt) : Math.sin(t * (c.state === 'pet' ? 1.6 : sp ? 5 : 2.3) + c.d.z) * (sp ? .35 : .5);
+    c.blink -= dt; let eo = 1; if (sleeping || c.state === 'pet') eo = .12; else if (c.blink < 0) { eo = .1; if (c.blink < -.14) c.blink = rand(2, 5); }
+    c.eyes.scale.y = damp(c.eyes.scale.y, eo, 25, dt);
+    c.y = damp(c.y, groundY(c.x, c.z), 10, dt);
+    c.g.position.set(c.x, c.y, c.z); c.g.rotation.y = c.ry;
+    if (dP < bd && c.state !== 'pet') { bd = dP; best = c; }
+  }
+  Cats.near = best;
+  const z = Game.zones.find(q => q.id === 'cat'); if (z && best) { z.x = best.x; z.z = best.z; }
+}
+const CAT_SAY = ['Bé nhắm mắt, kêu rừ rừ đều đều.', 'Bé dụi đầu vào tay bạn, đuôi vẫy chầm chậm.', 'Bé lăn ra nằm, chìa cái bụng tròn.', 'Bé meo một tiếng rồi lim dim ngủ.'];
+function heartBurst(x, y, z) {
+  const tex = World.heartTex || (World.heartTex = canvasTex(64, 64, (c) => { c.fillStyle = '#ff6f91'; c.beginPath(); c.moveTo(32, 54); c.bezierCurveTo(4, 34, 8, 8, 32, 20); c.bezierCurveTo(56, 8, 60, 34, 32, 54); c.fill(); }));
+  for (let i = 0; i < 3; i++) setTimeout(() => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); s.scale.setScalar(.22); const ox = rand(-.15, .15); scene.add(s);
+    tween(1.5, k => { s.position.set(x + ox + Math.sin(k * 6) * .06, y + k * .8, z); s.material.opacity = 1 - k * k; }).then(() => { scene.remove(s); s.material.dispose(); });
+  }, i * 320);
+}
+async function actCat() {
+  const c = Cats.near; if (!c) return; beginActivity(); const id = Game.actId, P = Player;
+  c.state = 'pet'; c.timer = 99;
+  const a = Math.atan2(P.x - c.x, P.z - c.z), tx = c.x + Math.sin(a) * 1.15, tz = c.z + Math.cos(a) * 1.15;
+  await walkTo(tx, tz, 2.2); if (id !== Game.actId) return;
+  P.vx = P.vz = 0; faceTo(c.x, c.z); c.ry = Math.atan2(P.x - c.x, P.z - c.z);
+  Game.famBack = 1.8; // cả nhà lùi lại để không che mèo
+  focusOn(c.x * .7 + P.x * .3, .4, c.z * .7 + P.z * .3, a + Math.PI - .5, .4, 3.6); // nhìn từ phía mèo: thấy mặt mèo và người vuốt
+  petCat(c);
+}
+async function petCat(c) {
+  const id = Game.actId, P = Player, ok = () => id === Game.actId;
+  P.pose = 'kneel'; P.leanT = .6; Snd.meow(.45); say(c, 'Meo~'); await wait(800); if (!ok()) return;
+  Snd.purr(3.2, .4); heartBurst(c.x, c.y + .75, c.z);
+  for (let i = 0; i < 3; i++) { P.leanT = .7; await wait(500); if (!ok()) return; P.leanT = .58; await wait(500); if (!ok()) return; }
+  Store.data.pets = (Store.data.pets || 0) + 1; Store.save(); P.leanT = .55;
+  openSheet(`<h2 class="sheet-title">Bé mèo ${c.d.name}</h2><p class="praise">${pick(CAT_SAY)}</p><p class="small" style="text-align:center;margin:-6px 0 12px">Bạn đã vuốt mèo chùa ${Store.data.pets} lần.</p>${resultButtons('againBtn', 'Vuốt thêm')}`);
+  $('#doneBtn').onclick = endActivity; $('#againBtn').onclick = () => { closeSheet(); petCat(c); };
+  if (Family.list[1]?.on && Math.random() < .6) setTimeout(() => say(Family.list[1], pick(['Cho con vuốt với!', 'Mèo dễ thương quá!'])), 700);
+}
+
 /* ===== HOẠT ĐỘNG: khung chung (bảng trượt, chú thích, lớp trò nhịp) ===== */
 const Game = { famPose: null, t: 0, busy: false, started: false, zone: null, zones: [], visitors: 0, sitting: false, tweens: [], update: null, actId: 0 };
 function beginActivity() {
@@ -2824,6 +3267,8 @@ function endActivity() {
   Cam.focus = null; Player.pose = 'idle'; Player.faceLock = false; Player.leanT = 0; Player.strikeA = 0; Player.held.visible = false;
   Rhythm.stop(); closeSheet(); caption('');
   if (Monks.abbot) { Monks.abbot.busy = false; Monks.abbot.pose = 'mala'; Monks.abbot.lean = 0; Monks.abbot.shaveT = 0; Monks.abbot.C.razor.visible = false; }
+  for (const c of Cats.list) if (c.state === 'pet') { c.state = 'sit'; c.timer = rand(3, 6); }
+  if (World.bowl) World.bowl.visible = false;
   if (Monks.photo) { Monks.photo.busy = false; Monks.photo.lean = 0; Monks.photo.pose = 'idle'; }
   Game.famPose = null; Game.famBack = 0; if (Player.lookOv) { Player.lookOv = null; rebuildPlayerKeepPose(); }
 }
@@ -3285,7 +3730,14 @@ function renderMute() {
   b.setAttribute('aria-label', on ? 'Tắt tiếng' : 'Bật tiếng');
   b.innerHTML = on ? '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9.5l5 5M22 9.5l-5 5"/></svg>';
 }
+function renderClock() {
+  const el = $('#clockLine'); if (!el) return;
+  const h = vnHour(), hh = Math.floor(h), mm = Math.floor((h - hh) * 60), p2 = n => String(n).padStart(2, '0');
+  const part = h < 4.5 ? 'Đêm khuya' : h < 6.2 ? 'Rạng đông' : h < 10.5 ? 'Buổi sáng' : h < 13 ? 'Buổi trưa' : h < 17 ? 'Buổi chiều' : h < 19 ? 'Hoàng hôn' : 'Buổi tối';
+  el.textContent = `${part} · ${p2(hh)}:${p2(mm)} giờ Việt Nam`;
+}
 function renderCounter() {
+  renderClock();
   const now = new Date(), key = now.getFullYear() * 372 + now.getMonth() * 31 + now.getDate();
   const base = 1200 + (key * 7919 % 900), mins = now.getHours() * 60 + now.getMinutes();
   $('#countNum').textContent = (base + Math.floor(mins * .8) + Game.visitors).toLocaleString('vi-VN');
@@ -3321,6 +3773,9 @@ function buildZones() {
     { id: 'pond', label: 'Thả hoa đăng', act: 'Viết lời cầu an', x: -19, z: -1, r: 8.9, my: 2.4, ring: 1.5, rx: -12.2, rz: 5.2, fn: () => actPrayer('lantern') },
     { id: 'phat', label: 'Lễ Phật', act: 'Lễ Phật', x: 0, z: -17.1, r: 2.4, my: 4.1, ring: .9, rx: ALTAR_SPOT.x, rz: ALTAR_SPOT.z, fn: actBuddha },
     { id: 'photo', label: 'Chụp ảnh', act: 'Chụp ảnh lưu niệm', x: -2.9, z: 41.6, r: 3, my: 3.3, ring: 1.1, rx: -1.9, rz: 40.9, out: true, fn: actPhoto },
+    { id: 'phongsinh', label: 'Phóng sinh', act: 'Thả cá phóng sinh', x: RELEASE.x, z: RELEASE.z + .3, r: 3.2, my: 2.6, ring: 1.1, rx: RELEASE.x, rz: RELEASE.z, fn: actRelease },
+    { id: 'quanam', label: 'Lễ Quan Âm', act: 'Lễ Quan Âm', x: QA_SPOT.x, z: QA_SPOT.z + .4, r: 3, my: 2.8, ring: 1, rx: QA_SPOT.x, rz: QA_SPOT.z, fn: actQuanAm },
+    { id: 'cat', label: 'Mèo', act: 'Vuốt mèo', x: 0, z: -999, r: 2.2, my: 1.2, ring: 0, noMarker: true, fn: actCat },
     { id: 'thay', label: 'Hỏi chuyện Thầy', act: 'Thưa chuyện Thầy', x: -6.6, z: 27, r: 2.8, my: 3.7, ring: 1.1, rx: -6.25, rz: 27, fn: actMonk },
   ];
   Game.zones.forEach(makeMarker); buildZoneRings(Game.zones);
@@ -3329,7 +3784,7 @@ function updateZones() {
   const P = Player; let best = null, bd = 1e9;
   for (const z of Game.zones) {
     const d = Math.hypot(P.x - z.x, P.z - z.z), n = d / z.r;
-    z.sprite.visible = !Game.busy && n > 1 && (z.out ? P.z > 30 : P.z < 34.5); // ngoài cổng chỉ hiện biển thợ ảnh để biển tên chùa thoáng
+    z.sprite.visible = !Game.busy && !z.noMarker && n > 1 && d < 46 && (z.out ? P.z > 30 : P.z < 34.5); // ngoài cổng chỉ hiện biển thợ ảnh để biển tên chùa thoáng
     if (n <= 1 && n < bd) { bd = n; best = z; }
   }
   if (Game.busy || P.auto) best = null;
@@ -3350,7 +3805,7 @@ function loop(now) {
   World.t = Math.min(1, World.t + dt / World.cycle);
   _skyT -= dt; if (_skyT <= 0) { _skyT = .4; updateSky(); }
   // Bóng tĩnh, chỉ vẽ lại vài giây một lần khi nắng đổi
-  _shadowT -= dt; if (_shadowT <= 0 && World.t < 1) { _shadowT = 3; renderer.shadowMap.needsUpdate = true; }
+  _shadowT -= dt; if (_shadowT <= 0) { _shadowT = 8; renderer.shadowMap.needsUpdate = true; }
   for (let i = Game.tweens.length - 1; i >= 0; i--) { const tw = Game.tweens[i]; tw.t += dt; const k = Math.min(1, tw.t / tw.dur); tw.fn(k); if (k >= 1) { Game.tweens.splice(i, 1); tw.res(); } }
   Game.update?.(dt);
   updatePlayer(dt, Game.t);
@@ -3360,7 +3815,7 @@ function loop(now) {
   updateFloatingLanterns(dt, Game.t);
   updateBellVisual(dt, Game.t);
   Net.update(dt, Game.t);
-  updateFamily(dt, Game.t); updateMonks(dt, Game.t); updateAudioMix(dt); updateHairBits(dt);
+  updateFamily(dt, Game.t); updateMonks(dt, Game.t); updateAudioMix(dt); updateHairBits(dt); updateKoi(dt, Game.t);
   if (World.smokeBoost.value > 0) World.smokeBoost.value = Math.max(0, World.smokeBoost.value - dt / 16);
   for (const r of Fx.playerRibbons) { r.mesh.rotation.z = Math.sin(Game.t * 1.3 + r.ph) * .045; r.mesh.rotation.y = r.base + Math.sin(Game.t * .8 + r.ph) * .08; }
   updateZones();
@@ -3382,9 +3837,9 @@ function prepare() {
       catch (e2) { e2.netFail = true; throw e2; }
     }
     await new Promise(r => setTimeout(r, 0)); // nhường cho màn chào vẽ trước
-    initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); buildPhotographer(); restorePlayerOfferings();
+    initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); buildPhotographer(); buildCats(); restorePlayerOfferings();
     bindInput(); bindPages();
-    renderCounter(); setInterval(renderCounter, 60000);
+    renderCounter(); setInterval(renderCounter, 60000); setInterval(renderClock, 15000);
     updateCamera(.016, 0); renderer.compile(scene, camera);
   })();
   readyPromise.catch(showFatal);
@@ -3420,7 +3875,7 @@ $('#action').addEventListener('click', () => { if (Game.zone && !Game.busy) Game
 addEventListener('focusout', () => setTimeout(() => window.scrollTo(0, 0), 60)); // bàn phím ảo đóng thì trả trang về chỗ cũ
 // Âm thanh bị hệ thống ngắt (cuộc gọi, chuyển ứng dụng) thì lần chạm sau bật lại
 for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => { if (Snd.ctx && Snd.ctx.state !== 'running' && !document.hidden) Snd.ctx.resume(); }, { passive: true });
-if (DEBUG) window.__chua = { Player, Game, World, Guests, Store, Cam, Col, Snd, Fx, Rhythm, U, Input, updatePlayer, hasBadWord, groundY, addPlayerRibbon, addPlayerLantern, Net, Family, Monks, buildPlayer, actPhoto, askOrdain, doOrdain, doDisrobe, HairBits, STUDIO, drawPhoto, get renderer() { return renderer; } };
+if (DEBUG) window.__chua = { Player, Game, World, Guests, Store, Cam, Col, Snd, Fx, Rhythm, U, Input, updatePlayer, hasBadWord, groundY, addPlayerRibbon, addPlayerLantern, Net, Family, Monks, updateSky, renderClock, Cats, Koi, actRelease, actQuanAm, actCat, buildPlayer, actPhoto, askOrdain, doOrdain, doDisrobe, HairBits, STUDIO, drawPhoto, get renderer() { return renderer; } };
 prepare();
 </script>
 </body>

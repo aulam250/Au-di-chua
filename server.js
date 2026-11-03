@@ -59,11 +59,12 @@ function cleanPresence(m) {
   return {
     n: (typeof m.n === 'string' ? m.n : '').replace(/[\p{C}]/gu, '').trim().slice(0, 18),
     x: Math.round(clampN(m.x, -27.3, 27.3) * 100) / 100,
-    z: Math.round(clampN(m.z, -27.3, 46) * 100) / 100,
+    z: Math.round(clampN(m.z, -91.3, 46) * 100) / 100,
     r: typeof m.r === 'number' && Number.isFinite(m.r) ? Math.round(clampN(m.r, -100, 100) * 100) / 100 : 0,
     p: m.p === 2 || m.p === 3 || m.p === 5 ? m.p : 0,
     i: count(m.i),
     b: count(m.b),
+    m: Array.from((typeof m.m === 'string' ? m.m : '').replace(/[\p{Cc}\p{Co}\p{Cn}\u202A-\u202E\u2066-\u2069]/gu, '').replace(/\s+/g, ' ').trim()).slice(0, 40).join(''), // tâm trạng
   };
 }
 function clientIp(req) {
