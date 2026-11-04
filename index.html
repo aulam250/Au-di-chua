@@ -6,215 +6,215 @@
 <meta name="theme-color" content="#3b2340">
 <title>Cả nhà Lên Chùa</title>
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{ "imports": { 
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
+
 <style>
-/* ===== GIAO DIỆN: biến màu, bố cục, nút, bảng ===== */
+/* ===== UPGRADED GRAPHICS 2025 - Premium Temple Aesthetic ===== */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
 :root{
-  --ink:#33201a; --ink2:#6d5343; --paper:#fff6e5; --paper2:#f6e6cb; --line:#e3cda8;
-  --gold:#e9b44c; --gold2:#b8862c; --red:#a5301f; --red2:#7f2115; --lam:#5f7fa8;
-  --serif:Georgia,"Times New Roman","Noto Serif",serif;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  --ink:#2b1d16; --ink2:#7a5f4a; --paper:#fff7e8; --paper2:#fbeccd; --line:#e7cfa3;
+  --gold:#f3c15d; --gold2:#c68a28; --gold-glow:rgba(243,193,93,.45);
+  --red:#b52e1c; --red2:#7a1e12; --red-glow:rgba(181,46,28,.35);
+  --lam:#6d8ab0; --teal:#7bd4c0;
+  --serif:"Fraunces",Georgia,serif;
+  --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --glass:rgba(255,247,232,.78);
+  --glass-strong:rgba(255,247,232,.92);
+  --glass-dark:rgba(34,18,28,.62);
+  --glass-dark-strong:rgba(34,18,28,.78);
+  --shadow-soft:0 10px 40px rgba(42,18,30,.18), 0 2px 12px rgba(42,18,30,.12);
+  --shadow-lift:0 18px 50px rgba(42,18,30,.24), 0 4px 18px rgba(42,18,30,.16);
   --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
   --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;overflow:hidden;background:#2a1a30;color:var(--ink);font-family:var(--sans);
+html,body{margin:0;height:100%;overflow:hidden;background:radial-gradient(120% 120% at 50% 10%, #4a2d5a 0%, #2a1a30 55%, #1a0f1c 100%);color:var(--ink);font-family:var(--sans);
   -webkit-user-select:none;user-select:none;overscroll-behavior:none;-webkit-text-size-adjust:100%}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outline-offset:3px;box-shadow:0 0 0 6px var(--gold-glow)}
 input,textarea{font:inherit;-webkit-user-select:text;user-select:text}
-#stage{position:fixed;inset:0;touch-action:none}
+#stage{position:fixed;inset:0;touch-action:none;filter:saturate(1.05) contrast(1.02)}
 #stage canvas{display:block;width:100%;height:100%;touch-action:none}
 .hide{display:none!important}
 
-/* Nút chung */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:0 22px;border-radius:14px;
-  font-weight:700;font-size:17px;background:var(--paper2);color:var(--ink);transition:transform .12s,filter .12s}
-.btn:active{transform:scale(.97);filter:brightness(.95)}
-.btn.main{background:linear-gradient(180deg,#c2402a,var(--red));color:#fff3dc;box-shadow:0 3px 0 var(--red2)}
-.btn.ghost{background:transparent;color:var(--ink2);font-weight:600}
+/* Buttons Premium */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 24px;border-radius:16px;
+  font-weight:700;font-size:16.5px;letter-spacing:.01em;background:var(--glass);color:var(--ink);border:1px solid rgba(231,207,163,.65);
+  backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);
+  box-shadow:var(--shadow-soft), inset 0 1px 0 rgba(255,255,255,.7);transition:all .22s cubic-bezier(.2,.8,.2,1)}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-lift), inset 0 1px 0 rgba(255,255,255,.8);filter:brightness(1.02)}
+.btn:active{transform:translateY(1px) scale(.98);filter:brightness(.97);transition-duration:.08s}
+.btn.main{background:linear-gradient(180deg,#d44a33 0%,#a82a1a 100%);color:#fff6e0;border-color:rgba(255,230,190,.0);
+  box-shadow:0 4px 0 var(--red2), 0 12px 28px var(--red-glow), inset 0 1px 0 rgba(255,255,255,.35);text-shadow:0 1px 0 rgba(0,0,0,.2)}
+.btn.main:hover{box-shadow:0 5px 0 var(--red2), 0 16px 36px var(--red-glow), inset 0 1px 0 rgba(255,255,255,.45);transform:translateY(-2px)}
+.btn.main:active{box-shadow:0 1px 0 var(--red2), 0 4px 12px var(--red-glow);transform:translateY(2px)}
+.btn.ghost{background:rgba(255,247,232,.12);color:var(--paper2);border-color:rgba(255,236,203,.18);backdrop-filter:blur(12px)}
+.btn.ghost:hover{background:rgba(255,247,232,.18);color:#fff}
 .btn.wide{width:100%}
-.btn[disabled]{opacity:.55;cursor:default}
-.row{display:flex;gap:10px}
-.row>.btn{flex:1;padding:0 12px}
+.btn[disabled]{opacity:.55;cursor:default;transform:none!important}
+.row{display:flex;gap:12px}
+.row>.btn{flex:1;padding:0 14px}
 
-/* Màn chào */
+/* Welcome - Cinematic */
 #welcome{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-  padding:calc(7vh + var(--sat)) 22px calc(18px + var(--sab));text-align:center;color:#fff3dc;overflow:hidden;
-  background:linear-gradient(180deg,#2e2a5c 0%,#6e3d6e 24%,#d9694f 42%,#f7a95f 54%,#3a2030 54.2%,#25151f 100%);transition:opacity .7s}
-#welcome.out{opacity:0;pointer-events:none}
-#welcome svg.sil{position:absolute;left:50%;top:54%;width:min(620px,112vw);transform:translate(-50%,-99.5%);pointer-events:none}
-#welcome .sun{position:absolute;left:50%;top:54%;width:200px;height:200px;margin:-150px 0 0 -100px;border-radius:50%;clip-path:inset(0 0 50px 0);
-  background:radial-gradient(circle,#ffe2a1 0,#ffc069 45%,rgba(255,170,90,0) 70%);pointer-events:none}
-.wbox{position:relative;width:min(380px,100%);height:100%;display:flex;flex-direction:column;gap:11px}
-.wbox .game{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:#ffdfa6}
-.wbox h1{font-family:var(--serif);font-weight:700;font-size:clamp(32px,10.2vw,50px);white-space:nowrap;line-height:1.1;margin:0;text-shadow:0 2px 14px rgba(40,10,40,.55)}
-.wform{margin-top:auto;display:flex;flex-direction:column;gap:11px}
-.wbox label{font-size:15px;text-align:left;color:#ffe9c9}
-.wbox input{height:52px;border-radius:14px;border:2px solid rgba(255,230,190,.65);background:rgba(255,246,229,.96);padding:0 16px;
-  font-size:18px;color:var(--ink);width:100%}
-.wbox .btn.main{min-height:60px;font-size:21px;font-family:var(--serif)}
-#wstatus{min-height:20px;font-size:14px;color:#ffe2b8}
-.wnote{font-size:12.5px;color:#d9c1a6;line-height:1.45}
-/* Chọn diện mạo (màn chào và Sổ) */
-.looks{display:flex;flex-direction:column;gap:7px}
-.lrow{display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
-.sw{width:40px;height:40px;border-radius:50%;border:3px solid rgba(255,240,210,.55)}
-.sw.sel{border-color:#ffe2a6;box-shadow:0 0 0 3px rgba(165,48,31,.95)}
-.sw.sm{width:30px;height:30px}
-.hc{min-height:34px;padding:0 11px;border-radius:17px;background:rgba(255,246,229,.16);color:#ffe9c9;font-size:13.5px;font-weight:600;border:2px solid transparent}
-.hc.sel{background:#fff0d8;color:var(--ink);border-color:var(--gold)}
-.lname{font-size:13px;color:#ffe2b8;min-height:16px;text-align:center}
-.wbox label.fam,.fam{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14.5px;color:#ffe9c9;text-align:center}
+  padding:calc(6vh + var(--sat)) 22px calc(20px + var(--sab));text-align:center;color:#fff3dc;overflow:hidden;
+  background:radial-gradient(120% 80% at 50% 15%, #ffe7a8 0%, #ffb56a 18%, #e96d4a 34%, #8a3d6a 52%, #3a2245 68%, #221425 85%);
+  transition:opacity .9s cubic-bezier(.4,0,.2,1), transform .9s cubic-bezier(.4,0,.2,1)}
+#welcome::before{content:'';position:absolute;inset:-20%;background:
+  radial-gradient(40% 40% at 30% 20%, rgba(255,255,255,.18) 0%, transparent 60%),
+  radial-gradient(50% 50% at 80% 30%, rgba(255,180,100,.22) 0%, transparent 60%),
+  radial-gradient(60% 60% at 50% 80%, rgba(90,40,80,.5) 0%, transparent 70%);
+  animation:drift 18s ease-in-out infinite alternate;pointer-events:none}
+@keyframes drift{0%{transform:translate3d(-2%,-1%,0) scale(1)}100%{transform:translate3d(2%,1.5%,0) scale(1.05)}}
+#welcome.out{opacity:0;pointer-events:none;transform:scale(1.04);filter:blur(8px)}
+#welcome svg.sil{position:absolute;left:50%;top:54%;width:min(680px,118vw);transform:translate(-50%,-99.5%);pointer-events:none;filter:drop-shadow(0 12px 24px rgba(0,0,0,.4))}
+#welcome .sun{position:absolute;left:50%;top:54%;width:260px;height:260px;margin:-170px 0 0 -130px;border-radius:50%;clip-path:inset(0 0 50px 0);
+  background:radial-gradient(circle at 50% 45%, #fff6d0 0%, #ffdd8a 22%, #ff9a4a 48%, rgba(255,110,40,.0) 72%);
+  box-shadow:0 0 80px rgba(255,200,100,.55), 0 0 140px rgba(255,140,60,.25);pointer-events:none;animation:sunPulse 4s ease-in-out infinite}
+@keyframes sunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.wbox{position:relative;width:min(400px,100%);height:100%;display:flex;flex-direction:column;gap:14px;z-index:1}
+.wbox .game{font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;color:#ffdfa6;font-weight:700;opacity:.9;text-shadow:0 1px 12px rgba(0,0,0,.4)}
+.wbox h1{font-family:var(--serif);font-weight:700;font-size:clamp(36px,11vw,54px);white-space:nowrap;line-height:.95;margin:2px 0 4px;letter-spacing:-.02em;
+  text-shadow:0 2px 0 rgba(0,0,0,.15), 0 8px 32px rgba(40,10,40,.6), 0 0 40px rgba(255,220,160,.25)}
+.wform{margin-top:auto;display:flex;flex-direction:column;gap:14px;padding:20px 18px 18px;background:var(--glass);border:1px solid rgba(255,236,203,.7);
+  border-radius:24px;backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);
+  box-shadow:var(--shadow-lift), inset 0 1px 0 rgba(255,255,255,.8)}
+.wbox label{font-size:13.5px;text-align:left;color:var(--ink2);font-weight:700;letter-spacing:.02em;text-transform:uppercase}
+.wbox input{height:54px;border-radius:14px;border:1.5px solid var(--line);background:rgba(255,255,255,.88);padding:0 16px;
+  font-size:17px;color:var(--ink);width:100%;box-shadow:inset 0 2px 8px rgba(90,60,20,.06);transition:all .2s}
+.wbox input:focus{border-color:var(--gold2);background:#fff;box-shadow:inset 0 2px 8px rgba(90,60,20,.04), 0 0 0 4px var(--gold-glow)}
+.wbox .btn.main{min-height:62px;font-size:20px;font-family:var(--serif);letter-spacing:.01em;border-radius:18px}
+#wstatus{min-height:20px;font-size:13.5px;color:var(--ink2);font-weight:600}
+.wnote{font-size:12px;color:#8a6d52;line-height:1.5;font-weight:500}
+
+/* Appearance picker premium */
+.looks{display:flex;flex-direction:column;gap:10px}
+.lrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.sw{width:42px;height:42px;border-radius:50%;border:3px solid rgba(255,240,210,.7);box-shadow:0 2px 8px rgba(0,0,0,.12), inset 0 1px 2px rgba(255,255,255,.6);transition:all .2s cubic-bezier(.2,.8,.2,1)}
+.sw:hover{transform:scale(1.08) translateY(-1px)}
+.sw.sel{border-color:#fff;box-shadow:0 0 0 3px var(--red), 0 6px 16px rgba(165,48,31,.35);transform:scale(1.12)}
+.sw.sm{width:32px;height:32px}
+.hc{min-height:36px;padding:0 14px;border-radius:20px;background:rgba(90,50,20,.08);color:var(--ink);font-size:13px;font-weight:700;border:1.5px solid transparent;transition:all .2s;backdrop-filter:blur(8px)}
+.hc:hover{transform:translateY(-1px);background:rgba(90,50,20,.12)}
+.hc.sel{background:linear-gradient(180deg,#fff8e6,#f6e6cb);color:var(--ink);border-color:var(--gold);box-shadow:0 4px 12px rgba(182,134,44,.22), inset 0 1px 0 #fff}
+.lname{font-size:12.5px;color:var(--ink2);min-height:16px;text-align:center;font-weight:600}
+.wbox label.fam,.fam{display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;color:var(--ink);text-align:center;font-weight:600}
 .fam input{width:20px;height:20px;accent-color:var(--red)}
 .pagemain .hc{background:var(--paper2);color:var(--ink)} .pagemain .hc.sel{background:#fff0e3;border-color:var(--red)}
 .pagemain .sw{border-color:var(--line)} .pagemain .sw.sel{border-color:var(--gold2)}
 .pagemain .lname{color:var(--ink2)} .pagemain .wbox label.fam,.pagemain .fam{color:var(--ink)}
 
-/* HUD */
+/* HUD Glass Premium */
 #hud{position:fixed;inset:0;z-index:10;pointer-events:none}
-#counter{position:absolute;left:calc(10px + var(--sal));top:calc(10px + var(--sat));max-width:calc(100vw - 245px);padding:7px 11px;border-radius:12px;
-  background:rgba(40,22,30,.62);color:#ffeccb;font-size:12.5px;line-height:1.3;backdrop-filter:blur(3px)}
-#counter b{color:var(--gold);font-weight:700}
-#netLine{margin-top:3px;color:#a9e6d6}
-#clockLine{margin-top:2px;color:#ffe2a6}
-#tools{position:absolute;right:calc(10px + var(--sar));top:calc(10px + var(--sat));display:flex;gap:7px;pointer-events:auto}
-.tool{min-width:46px;height:46px;padding:0 10px;border-radius:12px;background:rgba(40,22,30,.72);color:#ffeccb;font-size:13px;font-weight:700;
-  display:flex;align-items:center;justify-content:center;gap:5px}
-.tool svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-#joy{position:absolute;left:calc(20px + var(--sal));bottom:calc(24px + var(--sab));width:136px;height:136px;border-radius:50%;pointer-events:auto;touch-action:none;
-  background:radial-gradient(circle,rgba(255,240,210,.14) 40%,rgba(255,240,210,.28));border:2px solid rgba(255,240,210,.5)}
-#moodBtn{position:absolute;left:calc(20px + var(--sal));bottom:calc(176px + var(--sab));min-height:42px;max-width:min(62vw,300px);padding:0 14px 0 10px;border-radius:21px;pointer-events:auto;
-  background:rgba(40,22,30,.72);color:#ffeccb;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
+#counter{position:absolute;left:calc(14px + var(--sal));top:calc(14px + var(--sat));max-width:calc(100vw - 260px);padding:10px 14px;border-radius:16px;
+  background:var(--glass-dark);color:#ffeccb;font-size:12.5px;line-height:1.4;backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);
+  border:1px solid rgba(255,236,203,.14);box-shadow:0 8px 24px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.12)}
+#counter b{color:var(--gold);font-weight:800;text-shadow:0 0 12px var(--gold-glow)}
+#netLine{margin-top:4px;color:#a9e6d6;font-weight:600}
+#clockLine{margin-top:3px;color:#ffe2a6;font-weight:600}
+#tools{position:absolute;right:calc(12px + var(--sar));top:calc(12px + var(--sat));display:flex;gap:8px;pointer-events:auto}
+.tool{min-width:48px;height:48px;padding:0 12px;border-radius:14px;background:var(--glass-dark);color:#ffeccb;font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(255,236,203,.14);
+  backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);
+  box-shadow:0 8px 24px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.1);transition:all .2s cubic-bezier(.2,.8,.2,1)}
+.tool:hover{transform:translateY(-1px);background:var(--glass-dark-strong);box-shadow:0 12px 32px rgba(0,0,0,.28)}
+.tool:active{transform:translateY(1px) scale(.97)}
+.tool svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+#joy{position:absolute;left:calc(22px + var(--sal));bottom:calc(28px + var(--sab));width:142px;height:142px;border-radius:50%;pointer-events:auto;touch-action:none;
+  background:radial-gradient(100% 100% at 35% 30%, rgba(255,247,232,.22) 0%, rgba(255,247,232,.08) 55%, rgba(40,22,30,.18) 100%);
+  border:1.5px solid rgba(255,240,210,.28);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);
+  box-shadow:0 12px 32px rgba(0,0,0,.22), inset 0 1px 1px rgba(255,255,255,.18), inset 0 -8px 20px rgba(0,0,0,.18)}
+#joy #knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;
+  background:radial-gradient(100% 100% at 35% 25%, #fff7e8 0%, #f6e6cb 45%, #e3cda8 100%);
+  box-shadow:0 4px 12px rgba(0,0,0,.2), 0 1px 2px rgba(0,0,0,.2), inset 0 1px 1px #fff;transition:transform .08s}
+#moodBtn{position:absolute;left:calc(22px + var(--sal));bottom:calc(184px + var(--sab));min-height:44px;max-width:min(64vw,320px);padding:0 16px 0 12px;border-radius:22px;pointer-events:auto;
+  background:var(--glass-dark);color:#ffeccb;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;
+  border:1px solid rgba(255,236,203,.14);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  box-shadow:0 8px 24px rgba(0,0,0,.22)}
 #moodBtn svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-#mapBtn{position:absolute;left:calc(20px + var(--sal));bottom:calc(228px + var(--sab));min-height:42px;padding:0 14px 0 10px;border-radius:21px;pointer-events:auto;background:rgba(40,22,30,.72);color:#ffeccb;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
-#mapBtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-#moodBtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#moodBtn.on{background:rgba(255,246,229,.92);color:var(--ink);box-shadow:0 0 0 2px var(--gold)}
-#moodText{width:100%;height:52px;border-radius:14px;border:2px solid var(--line);padding:0 13px;font-size:17px;background:#fff;color:var(--ink)}
-@media (min-width:820px) and (pointer:fine){ #moodBtn{bottom:calc(24px + var(--sab))} #mapBtn{bottom:calc(76px + var(--sab))} }
-#knob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;
-  background:radial-gradient(circle at 40% 35%,#fff4dc,#d9b98a);box-shadow:0 3px 10px rgba(0,0,0,.35);pointer-events:none}
-#action{position:absolute;right:calc(18px + var(--sar));bottom:calc(36px + var(--sab));min-width:150px;max-width:56vw;min-height:84px;padding:10px 20px;border-radius:24px;pointer-events:auto;
-  background:linear-gradient(180deg,#d24b2f,var(--red));color:#fff3dc;font-family:var(--serif);font-weight:700;font-size:21px;line-height:1.15;
-  box-shadow:0 4px 0 var(--red2),0 0 0 4px rgba(233,180,76,.75),0 8px 26px rgba(0,0,0,.4);animation:breath 1.8s ease-in-out infinite}
-#action:active{transform:translateY(2px)}
-@keyframes breath{50%{box-shadow:0 4px 0 var(--red2),0 0 0 8px rgba(233,180,76,.4),0 8px 26px rgba(0,0,0,.4)}}
-body.busy #joy,body.busy #moodBtn,body.busy #mapBtn,body.busy #action,body.busy #tools,body.busy #counter,body.busy #toast{display:none}
-#caption{position:absolute;left:50%;top:calc(66px + var(--sat));transform:translateX(-50%);max-width:88vw;padding:9px 18px;border-radius:14px;background:rgba(40,22,30,.72);
-  color:#fff0d2;font-family:var(--serif);font-size:18px;text-align:center;opacity:0;transition:opacity .35s}
-#caption.on{opacity:1}
-#toast{position:absolute;left:50%;bottom:calc(178px + var(--sab));transform:translateX(-50%);width:max-content;max-width:88vw;padding:10px 16px;border-radius:14px;background:rgba(40,22,30,.86);
-  color:#fff0d2;font-size:14.5px;line-height:1.35;text-align:center;opacity:0;transition:opacity .35s}
-#toast.on{opacity:1}
-.bub{position:absolute;left:0;top:0;max-width:170px;padding:6px 10px;border-radius:12px 12px 12px 3px;background:rgba(255,248,232,.95);color:var(--ink);font-size:13px;line-height:1.25;
-  box-shadow:0 2px 8px rgba(0,0,0,.28);opacity:0;transition:opacity .3s;will-change:transform;white-space:normal;width:max-content}
-.bub.on{opacity:1}
 
-/* Bảng trượt dưới màn */
-#sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;pointer-events:none;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.3,1)}
-#sheet.on{transform:none}
-#sheetBody{pointer-events:auto;width:min(520px,100%);max-height:86vh;max-height:86dvh;overflow:auto;padding:20px 18px calc(18px + var(--sab));border-radius:22px 22px 0 0;background:var(--paper);
-  box-shadow:0 -8px 30px rgba(0,0,0,.35);-webkit-overflow-scrolling:touch}
-.sheet-title{font-family:var(--serif);font-size:24px;font-weight:700;margin:0 0 6px;color:var(--red2)}
-.sheet-sub{margin:0 0 14px;color:var(--ink2);font-size:15px;line-height:1.45}
-.small{font-size:12.5px;color:var(--ink2);line-height:1.4}
-.choice{display:flex;gap:10px;margin:0 0 12px}
-.choice button{flex:1;min-height:86px;border-radius:16px;background:#fff;border:2px solid var(--line);padding:10px 6px;font-weight:700;font-size:16px;line-height:1.25}
-.choice button small{display:block;font-weight:500;color:var(--ink2);font-size:12.5px;margin-top:3px}
-.choice button.sel{border-color:var(--red);background:#fff0e3;box-shadow:0 0 0 2px var(--red) inset}
-.chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 10px}
-.chips button{min-height:38px;padding:0 13px;border-radius:19px;background:var(--paper2);font-size:14px;font-weight:600}
-textarea{width:100%;height:96px;resize:none;border-radius:14px;border:2px solid var(--line);padding:11px 13px;font-size:17px;background:#fff;color:var(--ink);line-height:1.35}
-.count{text-align:right;font-size:12.5px;color:var(--ink2);margin:3px 2px 9px}
-.warn{color:var(--red);font-size:14px;margin:0 0 9px;min-height:0}
-.score{font-family:var(--serif);font-size:64px;line-height:1;color:var(--red);text-align:center;margin:8px 0 2px}
-.score small{font-size:17px;color:var(--ink2)}
-.tally{display:flex;justify-content:center;gap:14px;font-size:14px;color:var(--ink2);margin:8px 0 12px;flex-wrap:wrap}
-.praise{font-family:var(--serif);font-size:18px;line-height:1.45;text-align:center;margin:6px 0 14px}
+/* Action Button - Hero */
+#action{position:absolute;right:calc(22px + var(--sar));bottom:calc(28px + var(--sab));min-height:56px;min-width:132px;padding:0 20px;border-radius:28px;pointer-events:auto;
+  background:linear-gradient(180deg,#f0c35a,#d89a2a);color:#3a2416;font-weight:800;font-size:16px;letter-spacing:.01em;
+  box-shadow:0 4px 0 #9a6a1a, 0 12px 28px rgba(243,193,93,.45), inset 0 1px 0 rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.3);transition:all .18s cubic-bezier(.2,.8,.2,1);animation:actionFloat 3s ease-in-out infinite}
+@keyframes actionFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+#action:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 6px 0 #9a6a1a, 0 16px 36px rgba(243,193,93,.55)}
+#action:active{transform:translateY(2px) scale(.98);box-shadow:0 1px 0 #9a6a1a, 0 4px 12px rgba(243,193,93,.35)}
 
-/* Ống xăm */
-#tube{position:relative;width:120px;height:190px;margin:4px auto 10px}
-#tube .sticks{position:absolute;left:18px;right:18px;top:0;height:90px;display:flex;justify-content:space-between;align-items:flex-end}
-#tube .sticks i{display:block;width:6px;background:#d8b67c;border-radius:3px 3px 0 0;height:80px}
-#tube .sticks i:nth-child(2n){height:66px;background:#c9a266}#tube .sticks i:nth-child(3n){height:88px}
-#tube .body{position:absolute;left:8px;right:8px;bottom:0;height:130px;border-radius:10px 10px 16px 16px;background:linear-gradient(90deg,#74231a,#b23a26 40%,#8c2a1b);
-  border-top:7px solid var(--gold);border-bottom:7px solid var(--gold);display:flex;align-items:center;justify-content:center;color:#ffe2a9;font-family:var(--serif);font-size:19px;writing-mode:vertical-rl}
-#tube.shake{animation:tubeshake .22s linear infinite}
-@keyframes tubeshake{25%{transform:rotate(-7deg) translateY(-2px)}75%{transform:rotate(7deg) translateY(2px)}}
-#drop{position:absolute;left:50%;top:-36px;width:16px;height:96px;margin-left:-8px;border-radius:4px;background:linear-gradient(#e2c189,#c79f62);box-shadow:0 2px 5px rgba(0,0,0,.3);opacity:0}
-#drop.go{animation:dropstick .9s ease-in forwards}
-@keyframes dropstick{0%{opacity:1;transform:translateY(0)}50%{opacity:1;transform:translateY(-40px) rotate(14deg)}100%{opacity:1;transform:translateY(190px) rotate(80deg)}}
-.bar{height:12px;border-radius:6px;background:var(--paper2);overflow:hidden;margin:0 0 12px}
-.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--red))}
-.card{border:2px solid var(--gold2);border-radius:16px;padding:18px 16px;background:linear-gradient(180deg,#fff,#fff3dc);text-align:center;margin:0 0 12px;animation:cardin .5s ease-out}
-@keyframes cardin{from{transform:rotateY(70deg) scale(.9);opacity:0}}
-.card .no{color:var(--red);font-weight:700;font-size:14px;letter-spacing:.06em}
-.card p{font-family:var(--serif);font-size:20px;line-height:1.45;margin:9px 0 10px}
-#holdBtn{touch-action:none;-webkit-touch-callout:none}
-/* Chụp ảnh: chớp đèn, đếm ngược, ảnh in xem trước */
-#flash{position:fixed;inset:0;z-index:36;background:#fff;opacity:0;pointer-events:none}
-#flash.on{animation:flash .7s ease-out}
-@keyframes flash{0%{opacity:.95}100%{opacity:0}}
-#cd{position:fixed;left:50%;top:30%;z-index:26;transform:translate(-50%,-50%);font-family:var(--serif);font-weight:700;font-size:clamp(46px,14vw,96px);color:#fff3dc;text-shadow:0 3px 18px rgba(0,0,0,.65);pointer-events:none;opacity:0;white-space:nowrap}
-#cd.on{animation:cdpop .8s ease-out}
-@keyframes cdpop{0%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}20%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0}}
-.photo-prev{display:block;max-width:100%;max-height:44vh;margin:0 auto 10px;border-radius:6px;box-shadow:0 3px 14px rgba(0,0,0,.3)}
+/* Toast & Bubbles */
+#toast{position:absolute;left:50%;bottom:calc(110px + var(--sab));transform:translateX(-50%);max-width:min(88vw,420px);padding:12px 18px;border-radius:18px;
+  background:var(--glass-strong);color:var(--ink);font-size:14.5px;font-weight:600;line-height:1.45;text-align:center;
+  border:1px solid rgba(231,207,163,.7);box-shadow:var(--shadow-lift), inset 0 1px 0 #fff;
+  backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);pointer-events:none;opacity:0;transition:all .4s cubic-bezier(.2,.8,.2,1)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(-8px)}
+#caption{position:absolute;left:50%;top:calc(22% + var(--sat));transform:translateX(-50%);max-width:min(90vw,520px);padding:14px 20px;border-radius:20px;
+  background:var(--glass-strong);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.5;text-align:center;
+  border:1px solid rgba(231,207,163,.7);box-shadow:var(--shadow-lift);backdrop-filter:blur(20px)}
 
-/* Lớp trò nhịp (chuông, mõ) */
-#rhythm{position:fixed;inset:0;z-index:25;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:calc(62px + var(--sat)) 16px calc(26px + var(--sab));touch-action:none;cursor:pointer;
-  background:linear-gradient(180deg,rgba(25,12,25,.05),rgba(25,12,25,.55) 72%)}
-#rTop{position:absolute;left:0;right:0;top:calc(14px + var(--sat));text-align:center;color:#fff0d2;font-family:var(--serif);font-size:18px;padding:0 60px;pointer-events:none;text-shadow:0 1px 6px #000a}
-#rProg{position:absolute;left:18%;right:18%;top:calc(46px + var(--sat));height:7px;border-radius:4px;background:rgba(255,240,210,.25);overflow:hidden;pointer-events:none}
-#rProg i{display:block;height:100%;width:0;background:var(--gold)}
-#rClose{position:absolute;right:calc(10px + var(--sar));top:calc(8px + var(--sat));min-width:46px;height:46px;padding:0 10px;border-radius:12px;background:rgba(40,22,30,.72);color:#ffeccb;font-size:13px;font-weight:700}
-#rPad{position:relative;width:min(70vw,290px,44vh);aspect-ratio:1;flex:none;margin-bottom:14px;pointer-events:none}
-#rPad .target,#rPad .ring{position:absolute;inset:0;border-radius:50%}
-#rPad .target{transform:scale(.5);border:5px solid rgba(255,235,190,.85);box-shadow:0 0 20px rgba(255,210,120,.45)}
-#rPad .ring{border:7px solid var(--gold);will-change:transform,opacity;opacity:0}
-#rPad .core{position:absolute;left:50%;top:50%;width:38%;height:38%;margin:-19% 0 0 -19%;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff3dc;font-family:var(--serif);font-weight:700;font-size:17px;text-align:center}
-#rPad .core.mo{background:radial-gradient(circle at 40% 30%,#b97a42,#6e3f1e 72%);box-shadow:0 5px 12px rgba(0,0,0,.45)}
-#rPad .core.chuong{background:radial-gradient(circle at 40% 30%,#c79a4c,#6d4d1d 72%);box-shadow:0 5px 12px rgba(0,0,0,.45)}
-#rPad .core.hit{animation:corehit .18s}
-@keyframes corehit{50%{transform:scale(.88)}}
-#rJudge{height:40px;font-family:var(--serif);font-size:28px;font-weight:700;color:#ffe9b8;text-shadow:0 1px 8px #000b;pointer-events:none;opacity:0}
-#rJudge.on{animation:judge .75s ease-out}
-@keyframes judge{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:none}70%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
-#rHint{color:#ffeccb;font-size:15px;text-align:center;pointer-events:none;min-height:21px}
-
-/* Trang hướng dẫn, Sổ cầu an, Chia sẻ */
-.page{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) 12px calc(12px + var(--sab));background:rgba(25,12,25,.6)}
-.pagebox{width:min(520px,100%);max-height:100%;display:flex;flex-direction:column;border-radius:20px;background:var(--paper);overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.45)}
-.pagehead{display:flex;align-items:center;justify-content:space-between;padding:13px 12px 11px 18px;border-bottom:1px solid var(--line)}
-.pagehead h2{margin:0;font-family:var(--serif);font-size:23px;color:var(--red2)}
-.pagemain{padding:15px 16px 18px;overflow:auto;-webkit-overflow-scrolling:touch}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center}
-.stat b{display:block;font-family:var(--serif);font-size:26px;color:var(--red)}
-.stat span{font-size:12px;color:var(--ink2);line-height:1.25;display:block}
-.pagemain h3{font-family:var(--serif);font-size:18px;margin:16px 0 8px;color:var(--ink)}
-.entry{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:8px}
-.entry p{margin:0 0 5px;font-family:var(--serif);font-size:16.5px;line-height:1.4;overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
-.entry .meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--ink2)}
-.entry .meta button{color:var(--red);font-weight:700;min-height:34px;padding:0 6px}
-.empty{color:var(--ink2);font-size:14.5px;line-height:1.45;padding:2px 0 6px}
-.namerow{display:flex;gap:8px;margin-bottom:14px}
-.namerow input{flex:1;min-width:0;height:48px;border-radius:12px;border:2px solid var(--line);padding:0 12px;font-size:17px;background:#fff;color:var(--ink)}
-#tutorial .pagebox{padding:22px 20px 16px;text-align:center}
-#tutorial .step{font-size:13px;color:var(--ink2);letter-spacing:.06em}
-#tutorial h2{font-family:var(--serif);font-size:25px;margin:5px 0 8px;color:var(--red2)}
-#tutorial p{font-size:16.5px;line-height:1.5;margin:0 0 16px;min-height:75px}
-#tutorial svg{width:96px;height:96px;margin:6px auto 6px;display:block}
-#sharePreview{display:block;width:auto;max-width:100%;max-height:58vh;margin:0 auto 12px;border-radius:12px;box-shadow:0 3px 14px rgba(0,0,0,.3)}
-#fatal{position:fixed;inset:0;z-index:60;background:#2a1a30;color:#ffeccb;display:flex;align-items:center;justify-content:center;text-align:center;padding:28px;font-size:17px;line-height:1.5}
+/* Sheets & Pages */
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:20;transform:translateY(110%);transition:transform .5s cubic-bezier(.32,.72,0,1);
+  padding:0 calc(10px + var(--sal)) calc(10px + var(--sab)) calc(10px + var(--sar));pointer-events:none}
+#sheet.open{transform:translateY(0);pointer-events:auto}
+#sheetBody{background:var(--glass-strong);border:1px solid rgba(231,207,163,.7);border-radius:24px 24px 20px 20px;
+  box-shadow:0 -12px 40px rgba(42,18,30,.18), var(--shadow-lift), inset 0 1px 0 #fff;
+  backdrop-filter:blur(28px) saturate(1.6);-webkit-backdrop-filter:blur(28px) saturate(1.6);overflow:hidden}
+.page{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding:0;background:rgba(26,15,28,.42);backdrop-filter:blur(12px) saturate(1.2)}
+.pagebox{position:relative;width:min(520px,100%);max-height:min(92vh,900px);background:var(--glass-strong);border:1px solid rgba(231,207,163,.7);
+  border-radius:28px 28px 0 0;box-shadow:0 -16px 48px rgba(42,18,30,.22);backdrop-filter:blur(28px) saturate(1.6);-webkit-backdrop-filter:blur(28px) saturate(1.6);
+  display:flex;flex-direction:column;overflow:hidden;animation:pageIn .45s cubic-bezier(.32,.72,0,1)}
+@keyframes pageIn{from{transform:translateY(24px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.pagehead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 14px;border-bottom:1.5px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,247,232,.3))}
+.pagehead h2{font-family:var(--serif);font-size:22px;margin:0;color:var(--ink);letter-spacing:-.01em}
+.pagemain{padding:16px 18px 20px;overflow:auto;-webkit-overflow-scrolling:touch}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:linear-gradient(180deg,#fff,#fff6e5);border:1.5px solid var(--line);border-radius:18px;padding:12px 6px;text-align:center;box-shadow:0 4px 16px rgba(90,50,20,.06), inset 0 1px 0 #fff}
+.stat b{display:block;font-family:var(--serif);font-size:28px;color:var(--red);text-shadow:0 1px 0 rgba(255,255,255,.8)}
+.stat span{font-size:11.5px;color:var(--ink2);line-height:1.3;display:block;font-weight:700;letter-spacing:.02em;text-transform:uppercase;margin-top:2px}
+.pagemain h3{font-family:var(--serif);font-size:18px;margin:18px 0 10px;color:var(--ink)}
+.entry{background:linear-gradient(180deg,#fff,#fff8eb);border:1.5px solid var(--line);border-radius:16px;padding:13px 15px;margin-bottom:10px;box-shadow:0 3px 12px rgba(90,50,20,.05), inset 0 1px 0 #fff;transition:all .2s}
+.entry:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(90,50,20,.08)}
+.entry p{margin:0 0 6px;font-family:var(--serif);font-size:16.5px;line-height:1.45;overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
+.entry .meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--ink2);font-weight:600}
+.entry .meta button{color:var(--red);font-weight:800;min-height:34px;padding:0 8px;border-radius:10px;transition:all .15s}
+.entry .meta button:hover{background:rgba(181,46,28,.08)}
+.empty{color:var(--ink2);font-size:14.5px;line-height:1.5;padding:8px 0 10px;font-weight:500}
+.namerow{display:flex;gap:10px;margin-bottom:16px}
+.namerow input{flex:1;min-width:0;height:50px;border-radius:14px;border:1.5px solid var(--line);padding:0 14px;font-size:17px;background:#fff;color:var(--ink);box-shadow:inset 0 2px 8px rgba(90,60,20,.06);transition:all .2s}
+.namerow input:focus{border-color:var(--gold2);box-shadow:0 0 0 4px var(--gold-glow)}
+#tutorial .pagebox{padding:24px 22px 18px;text-align:center}
+#tutorial .step{font-size:12px;color:var(--ink2);letter-spacing:.08em;font-weight:700;text-transform:uppercase}
+#tutorial h2{font-family:var(--serif);font-size:26px;margin:6px 0 10px;color:var(--red2);letter-spacing:-.01em}
+#tutorial p{font-size:16.5px;line-height:1.55;margin:0 0 18px;min-height:75px;font-weight:500}
+#tutorial svg{width:104px;height:104px;margin:8px auto 10px;display:block;filter:drop-shadow(0 8px 20px rgba(0,0,0,.12))}
+#sharePreview{display:block;width:auto;max-width:100%;max-height:58vh;margin:0 auto 14px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.28);border:2px solid #fff}
+#fatal{position:fixed;inset:0;z-index:60;background:radial-gradient(100% 100% at 50% 20%, #4a2d5a, #1a0f1c);color:#ffeccb;display:flex;align-items:center;justify-content:center;text-align:center;padding:28px;font-size:17px;line-height:1.6}
 @media (max-height:500px){ #welcome svg.sil,#welcome .sun{display:none} #toast{bottom:calc(10px + var(--sab));max-width:42vw} }
-@media (prefers-reduced-motion:reduce){#action{animation:none}}
+@media (prefers-reduced-motion:reduce){#action{animation:none} #welcome::before{animation:none}}
 @media (min-width:820px) and (pointer:fine){ #joy{display:none} #action{bottom:calc(40px + var(--sab));right:calc(50% - 90px);min-width:180px} #toast{bottom:150px} }
+
+/* Premium FX Overlays */
+#fx-vignette{position:fixed;inset:0;pointer-events:none;z-index:9;
+  background:radial-gradient(120% 120% at 50% 50%, transparent 62%, rgba(26,15,28,.22) 86%, rgba(26,15,28,.55) 100%);
+  mix-blend-mode:multiply}
+#fx-grain{position:fixed;inset:-50%;pointer-events:none;z-index:9;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grainShift 8s steps(10) infinite}
+@keyframes grainShift{0%,100%{transform:translate(0,0)}10%{transform:translate(-5%,-5%)}20%{transform:translate(-10%,5%)}30%{transform:translate(5%,-10%)}40%{transform:translate(-5%,15%)}50%{transform:translate(-10%,10%)}60%{transform:translate(15%,0)}70%{transform:translate(0,10%)}80%{transform:translate(3%,-15%)}90%{transform:translate(-10%,10%)}}
+#fx-lightleak{position:fixed;left:0;top:0;width:60%;height:100%;pointer-events:none;z-index:8;opacity:.12;
+  background:radial-gradient(80% 60% at 10% 20%, rgba(255,180,90,.5) 0%, transparent 70%);
+  mix-blend-mode:soft-light;animation:leak 12s ease-in-out infinite alternate}
+@keyframes leak{0%{opacity:.08;transform:translateX(-2%)}100%{opacity:.16;transform:translateX(2%)}}
+
 </style>
+
 </head>
 <body>
-<div id="stage" aria-label="Khung cảnh chùa An Lạc"></div>
+<div id="fx-vignette"></div><div id="fx-lightleak"></div><div id="fx-grain"></div><div id="stage" aria-label="Khung cảnh chùa An Lạc"></div>
 
 <!-- Màn chào: chỉ HTML/CSS nên hiện ngay, trước khi tải Three.js -->
 <section id="welcome">
@@ -845,23 +845,47 @@ const U = { uT: { value: 0 }, uPR: { value: 1 }, uScale: { value: 1 }, uNight: {
 const World = { t: 0, cycle: 260, shadowTick: 0, skyTick: 0, sky: null, water: null, lanternMat: null, ringMat: null, smokeBoost: { value: 0 }, plaques: [] };
 
 function initRenderer() {
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  World.pr = Math.min(window.devicePixelRatio || 1, 2);
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: false, stencil: false });
+  World.pr = Math.min(window.devicePixelRatio || 1, 2.2);
   renderer.setPixelRatio(World.pr);
   renderer.setSize(innerWidth, innerHeight);
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
+  // UPGRADED GRAPHICS PIPELINE
+  renderer.shadowMap.enabled = true; 
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+  renderer.shadowMap.autoUpdate = false;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.physicallyCorrectLights = true;
   $('#stage').appendChild(renderer.domElement);
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog('#d9805e', 120, 560);
+  // Exponential fog for more atmospheric depth
+  scene.fog = new THREE.FogExp2('#d9805e', 0.0022);
+  scene.background = new THREE.Color('#1a0f1c');
   camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .1, 1100);
-  hemi = new THREE.HemisphereLight('#ffd9b0', '#5b4436', 1.2); scene.add(hemi);
-  sun = new THREE.DirectionalLight('#ffc48a', 2.2);
-  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  // Hemisphere light - softer and more natural
+  hemi = new THREE.HemisphereLight('#ffd9b0', '#5b4436', 1.35); 
+  hemi.position.set(0, 40, 0);
+  scene.add(hemi);
+  // Sun - directional with premium shadows
+  sun = new THREE.DirectionalLight('#ffc48a', 2.6);
+  sun.castShadow = true; 
+  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.radius = 3;
+  sun.shadow.blurSamples = 12;
   const sc = sun.shadow.camera; sc.left = -78; sc.right = 78; sc.top = 78; sc.bottom = -78; sc.near = 10; sc.far = 280;
-  sun.shadow.bias = -.0012; sun.shadow.normalBias = .35;
+  sun.shadow.bias = -.0008; sun.shadow.normalBias = .22;
   sun.target.position.set(0, 0, -24); scene.add(sun, sun.target);
-  altarLight = new THREE.PointLight('#ffcf9c', 60, 26, 1.7); altarLight.position.set(0, 4.8, -16.5); scene.add(altarLight);
-  burnerLight = new THREE.PointLight('#ff9a52', 14, 15, 1.7); burnerLight.position.set(0, 3, 8); scene.add(burnerLight);
+  // Fill light - rim light for chibi characters
+  const fillLight = new THREE.DirectionalLight('#a8c8ff', 0.65);
+  fillLight.position.set(-30, 20, -20);
+  scene.add(fillLight);
+  World.fillLight = fillLight;
+  // Altar and burner with enhanced intensity
+  altarLight = new THREE.PointLight('#ffcf9c', 80, 28, 1.6); altarLight.position.set(0, 4.8, -16.5); altarLight.castShadow = false; scene.add(altarLight);
+  burnerLight = new THREE.PointLight('#ff9a52', 22, 18, 1.6); burnerLight.position.set(0, 3, 8); scene.add(burnerLight);
+  // Ambient subtle
+  const amb = new THREE.AmbientLight('#2a1a30', 0.18); scene.add(amb);
   updateRendererSize();
   addEventListener('resize', updateRendererSize);
   addEventListener('orientationchange', () => setTimeout(updateRendererSize, 200));
@@ -871,6 +895,7 @@ function updateRendererSize() {
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.fov = w < h ? 64 : 50; camera.updateProjectionMatrix();
   U.uPR.value = renderer.getPixelRatio(); U.uScale.value = h / 800;
+  if(World.composer){ World.composer.setSize(w,h); World.composer.setPixelRatio(World.pr); }
 }
 
 // Khoá màu theo thời gian: 0 hoàng hôn → 1 đêm
@@ -902,50 +927,130 @@ function buildSky() {
   for (const k of new Set([...SKY, ...Object.values(SKY_DAY)])) if (!k.top.isColor) for (const n of ['top', 'hor', 'fog', 'sunC', 'hS', 'hG']) k[n] = new THREE.Color(k[n]);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { uTop: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3() }, uNight: U.uNight, uMoon: { value: new THREE.Vector3(.45, .62, -.64).normalize() } },
-    vertexShader: `varying vec3 vD; void main(){ vD=normalize(position); vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.); gl_Position=p.xyww; }`,
-    fragmentShader: `varying vec3 vD; uniform vec3 uTop,uHor,uSun,uMoon; uniform float uNight;
-      void main(){ vec3 d=normalize(vD); float h=clamp(d.y,0.,1.);
-        vec3 c=mix(uHor,uTop,pow(h,.55));
+    uniforms: { 
+      uTop: { value: new THREE.Color() }, 
+      uHor: { value: new THREE.Color() }, 
+      uSun: { value: new THREE.Vector3() }, 
+      uNight: U.uNight, 
+      uMoon: { value: new THREE.Vector3(.45, .62, -.64).normalize() },
+      uT: U.uT,
+      uGlow: U.uGlow
+    },
+    vertexShader: `varying vec3 vD; varying float vH; void main(){ vD=normalize(position); vH=position.y; vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.); gl_Position=p.xyww; }`,
+    fragmentShader: `
+      varying vec3 vD; varying float vH;
+      uniform vec3 uTop,uHor,uSun,uMoon; uniform float uNight, uT, uGlow;
+      // simplex noise for clouds
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float noise(vec2 p){
+        vec2 i=floor(p); vec2 f=fract(p);
+        float a=hash(i); float b=hash(i+vec2(1.,0.)); float c=hash(i+vec2(0.,1.)); float d=hash(i+vec2(1.,1.));
+        vec2 u=f*f*(3.-2.*f);
+        return mix(a,b,u.x) + (c-a)*u.y*(1.-u.x) + (d-b)*u.x*u.y;
+      }
+      void main(){ 
+        vec3 d=normalize(vD); 
+        float h=clamp(d.y*1.2,0.,1.);
+        float h2=pow(h,.52);
+        vec3 c=mix(uHor,uTop,h2);
+        // Horizon haze boost
+        float horizon = pow(1.-abs(d.y), 6.0) * 0.22;
+        c += vec3(1.,.85,.6)*horizon*(1.-uNight*0.7);
+
+        // Sun disc with soft bloom
         float s=max(dot(d,uSun),0.);
-        c+=vec3(1.,.62,.33)*pow(s,6.)*.42*(1.-uNight);
-        c+=vec3(1.,.82,.52)*smoothstep(.9988,.9995,s)*(1.-uNight)*1.4;
+        float sunDisc = smoothstep(.9982,.9994,s);
+        float sunBloom = pow(s, 5.5);
+        c+=vec3(1.,.62,.33)*sunBloom*.52*(1.-uNight);
+        c+=vec3(1.,.88,.62)*sunDisc*1.8*(1.-uNight);
+        c+=vec3(1.,.95,.8)*pow(s,180.)*3.2*(1.-uNight);
+
+        // Subtle high clouds - only day
+        if(uNight < 0.8){
+          float cloud = noise(d.xz*2.2 + uT*0.02) * noise(d.xz*4.5 + vec2(1.2,0.8));
+          float cloudH = smoothstep(0.05,0.35, d.y) * smoothstep(0.85,0.15, d.y);
+          c = mix(c, c + vec3(0.22,0.18,0.12)*0.35, cloud*cloudH*0.42*(1.-uNight));
+        }
+
+        // Moon + glow
         float m=max(dot(d,uMoon),0.);
-        c+=vec3(.95,.93,.8)*smoothstep(.99935,.9997,m)*uNight;
-        c+=vec3(.5,.55,.8)*pow(m,180.)*.28*uNight;
-        if(d.y<0.) c=mix(uHor,uHor*.55,clamp(-d.y*3.,0.,1.));
+        float moonDisc = smoothstep(.9991,.99968,m);
+        c+=vec3(.96,.94,.88)*moonDisc*1.1*uNight;
+        c+=vec3(.62,.68,.92)*pow(m, 80.)*.62*uNight;
+        c+=vec3(.5,.58,.85)*pow(m, 240.)*1.2*uNight;
+
+        // Milky way faint
+        if(uNight>0.3){
+          float milky = noise(vec2(atan(d.z,d.x)*2.5, d.y*3.)) * smoothstep(0.1,0.5,abs(d.y));
+          c += vec3(.25,.28,.45)*milky*0.08*uNight;
+        }
+
+        if(d.y<0.02){ 
+          float below = clamp(-d.y*4.,0.,1.);
+          c=mix(c, uHor*0.52, below*0.85);
+        }
+        // Tonemap slightly
+        c = c / (c + vec3(1.0)) * 1.35;
         gl_FragColor=vec4(c,1.);
         #include <colorspace_fragment>
       }`,
   });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(800, 24, 14), mat); dome.frustumCulled = false; dome.renderOrder = -10; scene.add(dome);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(850, 32, 20), mat); dome.frustumCulled = false; dome.renderOrder = -10; scene.add(dome);
   World.sky = mat;
-  // Sao: hiện dần khi trời tối
-  const n = 420, pos = new Float32Array(n * 3), ph = new Float32Array(n);
+  // Stars - upgraded with twinkle + color variation
+  const n = 720, pos = new Float32Array(n * 3), ph = new Float32Array(n), col = new Float32Array(n*3), sz = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    const a = Math.random() * Math.PI * 2, y = rand(.08, 1), r = Math.sqrt(1 - y * y);
-    pos[i * 3] = Math.cos(a) * r * 760; pos[i * 3 + 1] = y * 760; pos[i * 3 + 2] = Math.sin(a) * r * 760; ph[i] = Math.random() * 6.28;
+    const a = Math.random() * Math.PI * 2, y = rand(.09, 1), r = Math.sqrt(1 - y * y);
+    pos[i * 3] = Math.cos(a) * r * 800; pos[i * 3 + 1] = y * 800; pos[i * 3 + 2] = Math.sin(a) * r * 800; 
+    ph[i] = Math.random() * 6.28;
+    sz[i] = rand(0.7, 2.2);
+    // Star color temp variation
+    const t = Math.random();
+    if(t<0.6){ col[i*3]=0.95; col[i*3+1]=0.96; col[i*3+2]=1.0; } 
+    else if(t<0.8){ col[i*3]=0.75; col[i*3+1]=0.82; col[i*3+2]=1.0; }
+    else { col[i*3]=1.0; col[i*3+1]=0.9; col[i*3+2]=0.7; }
   }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aP', new THREE.BufferAttribute(ph, 1));
+  const g = new THREE.BufferGeometry(); 
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); 
+  g.setAttribute('aP', new THREE.BufferAttribute(ph, 1));
+  g.setAttribute('aC', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('aS', new THREE.BufferAttribute(sz, 1));
   const stars = new THREE.Points(g, new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, fog: false, uniforms: U,
-    vertexShader: `attribute float aP; uniform float uT,uPR,uNight; varying float vA; void main(){ vA=uNight*uNight*(.55+.45*sin(uT*1.3+aP)); gl_PointSize=(1.2+fract(aP*7.)*1.6)*uPR; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-    fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-.5); gl_FragColor=vec4(1.,.97,.86,vA*smoothstep(.5,.15,d)); }`,
+    vertexShader: `attribute float aP; attribute vec3 aC; attribute float aS; uniform float uT,uPR,uNight; varying float vA; varying vec3 vC; void main(){ 
+      float tw = .55+.45*sin(uT*1.6+aP*1.7);
+      vA=uNight*uNight*tw; vC=aC;
+      gl_PointSize=aS* (1.1 + fract(aP*7.)*1.9)*uPR * (0.8+tw*0.5); 
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); 
+    }`,
+    fragmentShader: `varying float vA; varying vec3 vC; void main(){ 
+      vec2 uv=gl_PointCoord-.5; float d=dot(uv,uv);
+      float core=smoothstep(.28,.0,d)*0.9;
+      float halo=smoothstep(.5,.15,d)*0.18;
+      gl_FragColor=vec4(vC, vA*(core+halo)); 
+    }`,
   }));
   stars.frustumCulled = false; scene.add(stars);
+  World.stars = stars;
 }
 function updateSky() {
   const h = vnHour(); let i = 0; while (i < SKY_TIMES.length - 2 && SKY_TIMES[i + 1][0] <= h) i++;
   const [h0, k0] = SKY_TIMES[i], [h1, k1] = SKY_TIMES[i + 1], f = clamp((h - h0) / (h1 - h0 || 1), 0, 1), A = SKY_DAY[k0], B = SKY_DAY[k1];
   World.sky.uniforms.uTop.value.lerpColors(A.top, B.top, f);
   World.sky.uniforms.uHor.value.lerpColors(A.hor, B.hor, f);
-  scene.fog.color.lerpColors(A.fog, B.fog, f);
+  if(scene.fog.isFogExp2) scene.fog.color.lerpColors(A.fog, B.fog, f);
+  else scene.fog.color.lerpColors(A.fog, B.fog, f);
   sun.color.lerpColors(A.sunC, B.sunC, f); sun.intensity = lerp(A.sunI, B.sunI, f);
   hemi.color.lerpColors(A.hS, B.hS, f); hemi.groundColor.lerpColors(A.hG, B.hG, f); hemi.intensity = lerp(A.hI, B.hI, f);
   const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const night = h < 12 ? 1 - sm(4.9, 6.1, h) : sm(17.9, 19.2, h), dusk = h > 12 ? sm(16.8, 18, h) : 0;
   U.uNight.value = night; World.hour = h;
   U.uGlow.value = lerp(.3, 1, clamp(night * 1.25 + dusk * .2, 0, 1));
+  // Dynamic fog density - thicker at dusk/dawn
+  if(scene.fog.isFogExp2){
+    const targetDensity = lerp(0.0016, 0.0032, night*0.7 + dusk*0.6);
+    scene.fog.density = damp(scene.fog.density, targetDensity, 0.8, 0.016);
+  }
   Snd.night = night;
   // Mặt trời mọc phía đông (+x), lên cao phía trước chùa lúc trưa, lặn phía tây (-x); đêm thì ánh trăng từ trên cao
   const a = (h - 6) / 12 * Math.PI, el = Math.sin(a);
@@ -954,32 +1059,65 @@ function updateSky() {
   World.sky.uniforms.uSun.value.copy(sd);
   L.set(sd.x, Math.max(sd.y, .2), sd.z).normalize().lerp(N, night).normalize();
   sun.position.copy(L).multiplyScalar(130).add(sun.target.position);
+  if(World.fillLight){ World.fillLight.position.set(-L.x*40, 18 + L.y*10, -L.z*30); World.fillLight.intensity = lerp(0.35, 0.75, 1-U.uNight.value); }
   altarLight.intensity = lerp(45, 90, U.uGlow.value);
   burnerLight.intensity = lerp(5, 34, U.uNight.value);
   if (World.water) { World.water.uniforms.uA.value.copy(World.sky.uniforms.uTop.value).multiplyScalar(.55); World.water.uniforms.uB.value.copy(World.sky.uniforms.uHor.value).multiplyScalar(.7); }
-  if (World.lanternMat) World.lanternMat.color.setScalar(lerp(.8, 1.35, U.uGlow.value));
+  if (World.lanternMat) { World.lanternMat.color.setScalar(lerp(.85, 1.45, U.uGlow.value)); World.lanternMat.emissiveIntensity = lerp(0.15, 0.85, U.uGlow.value); }
   World.plaques.forEach(m => { m.emissiveIntensity = lerp(.25, .85, U.uNight.value); });
 }
 
 /* ===== CẢNH: mặt đất, tường, cổng tam quan, biển tên ===== */
 function brickTex() {
-  const t = canvasTex(512, 512, (c, w, h) => {
-    const bw = 64, bh = 32; c.fillStyle = '#6c4632'; c.fillRect(0, 0, w, h);
-    for (let y = 0; y < h / bh; y++) for (let x = -1; x < w / bw + 1; x++) {
-      const px = x * bw + (y % 2 ? bw / 2 : 0), l = rand(38, 50), hue = rand(10, 22);
-      c.fillStyle = `hsl(${hue},${rand(38, 52)}%,${l}%)`; c.fillRect(px + 1.5, y * bh + 1.5, bw - 3, bh - 3);
+  const t = canvasTex(1024, 1024, (c, w, h) => {
+    const bw = 128, bh = 64; 
+    // Base mortar
+    const grad = c.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,'#7a523e'); grad.addColorStop(1,'#5e3d2e');
+    c.fillStyle = grad; c.fillRect(0, 0, w, h);
+    for (let y = 0; y < h / bh +1; y++) for (let x = -1; x < w / bw + 1; x++) {
+      const px = x * bw + (y % 2 ? bw / 2 : 0), l = rand(42, 56), hue = rand(14, 26);
+      const sat = rand(42, 58);
+      // Bevel effect
+      c.fillStyle = `hsl(${hue},${sat}%,${l}%)`; 
+      c.fillRect(px + 2.5, y * bh + 2.5, bw - 5, bh - 5);
+      // Highlight top
+      c.fillStyle = `hsla(${hue},${sat}%,${Math.min(78,l+18)}%,0.28)`; c.fillRect(px+2.5, y*bh+2.5, bw-5, 6);
+      // Shadow bottom
+      c.fillStyle = `rgba(20,8,4,0.22)`; c.fillRect(px+2.5, y*bh+bh-8, bw-5, 6);
     }
-    for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(${Math.random() < .5 ? '40,20,10' : '255,220,180'},${rand(.02, .06)})`; c.fillRect(rand(0, w), rand(0, h), rand(1, 7), rand(1, 4)); }
+    // Ambient occlusion + dirt
+    for (let i = 0; i < 1800; i++) { 
+      const alpha = rand(.03, .09);
+      c.fillStyle = `rgba(${Math.random() < .5 ? '30,12,6' : '255,225,185'},${alpha})`; 
+      c.fillRect(rand(0, w), rand(0, h), rand(1, 9), rand(1, 5)); 
+    }
+    // Micro cracks
+    c.strokeStyle='rgba(20,10,6,0.08)'; c.lineWidth=0.6;
+    for(let i=0;i<120;i++){ c.beginPath(); c.moveTo(rand(0,w),rand(0,h)); c.lineTo(rand(0,w),rand(0,h)); c.stroke(); }
   });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 16; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function slabTex() {
-  const t = canvasTex(256, 256, (c, w, h) => {
+  const t = canvasTex(512, 512, (c, w, h) => {
+    // Stone slab with realistic veining
     c.fillStyle = '#7d7468'; c.fillRect(0, 0, w, h);
-    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { const l = rand(58, 68); c.fillStyle = `hsl(32,${rand(10, 18)}%,${l}%)`; c.fillRect(x * 128 + 2, y * 128 + 2, 124, 124); }
-    for (let i = 0; i < 400; i++) { c.fillStyle = `rgba(50,35,25,${rand(.02, .07)})`; c.fillRect(rand(0, w), rand(0, h), rand(1, 5), rand(1, 3)); }
+    for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { 
+      const l = rand(60, 72); 
+      const base = `hsl(32,${rand(12, 20)}%,${l}%)`;
+      c.fillStyle = base; c.fillRect(x * 256 + 3, y * 256 + 3, 250, 250);
+      // Vein
+      c.strokeStyle = `hsla(30,10%,${l-12}%,0.18)`; c.lineWidth=1.2;
+      c.beginPath(); c.moveTo(x*256+20, y*256+30+rand(-20,20)); 
+      c.bezierCurveTo(x*256+80+rand(-20,20), y*256+100, x*256+180+rand(-20,20), y*256+160, x*256+230, y*256+220); c.stroke();
+      // Specular
+      const g = c.createRadialGradient(x*256+80, y*256+80, 0, x*256+80, y*256+80, 140);
+      g.addColorStop(0,'rgba(255,255,255,0.10)'); g.addColorStop(1,'rgba(255,255,255,0)');
+      c.fillStyle=g; c.fillRect(x*256+3,y*256+3,250,250);
+    }
+    for (let i = 0; i < 800; i++) { c.fillStyle = `rgba(50,35,25,${rand(.02, .09)})`; c.fillRect(rand(0, w), rand(0, h), rand(1, 6), rand(1, 4)); }
   });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 16; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function plaqueMat(text, w = 768, h = 200, size = 110) {
   const map = canvasTex(w, h, (c) => {
@@ -993,32 +1131,57 @@ function addPlaque(text, x, y, z, w, h, ry = 0, tw, th, size) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), plaqueMat(text, tw, th, size)); m.position.set(x, y, z); m.rotation.y = ry; scene.add(m); return m;
 }
 function buildGround(W) {
-  // Đất cỏ gợn nhẹ
-  const G = new Batch(), grass = new THREE.PlaneGeometry(1300, 1300, 70, 70); grass.translate(0, 74, 0); grass.rotateX(-Math.PI / 2);
+  // UPGRADED: Grass with vertex color variation and AO
+  const G = new Batch(), grass = new THREE.PlaneGeometry(1300, 1300, 84, 84); grass.translate(0, 74, 0); grass.rotateX(-Math.PI / 2);
   const gp = grass.attributes.position;
-  for (let i = 0; i < gp.count; i++) { const x = gp.getX(i), z = gp.getZ(i), ex = Math.max(Math.abs(x) - 175, 0), ez = Math.max(z > 0 ? z - 150 : -300 - z, 0), d = Math.hypot(ex, ez); gp.setY(i, d > 0 ? Math.sin(x * .03) * Math.cos(z * .035) * 9 * clamp(d / 90, 0, 1) : -.05); } // phẳng trong khu chùa, gò đồi ở xa
-  G.add(grass, '#57683a', null, { jit: .09 });
-  // Núi xa
-  for (let i = 0; i < 26; i++) {
-    const a = i / 26 * Math.PI * 2 + rand(-.1, .1), r = rand(470, 560), h = rand(70, 160), R = rand(80, 140);
-    G.add(new THREE.ConeGeometry(R, h, 6), i % 3 ? '#4b5a48' : '#566650', TRS(Math.cos(a) * r, h / 2 - 6, Math.sin(a) * r - 74, rand(0, 6)), { jit: .1 });
+  const colors = [];
+  for (let i = 0; i < gp.count; i++) { 
+    const x = gp.getX(i), z = gp.getZ(i), ex = Math.max(Math.abs(x) - 175, 0), ez = Math.max(z > 0 ? z - 150 : -300 - z, 0), d = Math.hypot(ex, ez); 
+    gp.setY(i, d > 0 ? Math.sin(x * .03) * Math.cos(z * .035) * 9 * clamp(d / 90, 0, 1) + Math.sin(x*.08+z*.06)*0.6 : -.05);
+    // Grass color variation
+    const noise = Math.sin(x*.05)*Math.cos(z*.05)*0.5 + Math.random()*0.2;
+    const g = 0.34 + noise*0.08;
+    const r = 0.32 + noise*0.05;
+    colors.push(r,g,0.22+noise*0.04);
   }
-  const gm = new THREE.Mesh(G.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true })); gm.receiveShadow = true; scene.add(gm);
-  // Sân gạch
+  grass.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
+  G.add(grass, '#57683a', null, { jit: .09 });
+  // Distant mountains with better colors
+  for (let i = 0; i < 30; i++) {
+    const a = i / 30 * Math.PI * 2 + rand(-.12, .12), r = rand(470, 600), h = rand(75, 175), R = rand(85, 150);
+    const col = i % 3 ? (i%2?'#4e6050':'#566650') : '#5a6d58';
+    G.add(new THREE.ConeGeometry(R, h, 7), col, TRS(Math.cos(a) * r, h / 2 - 6, Math.sin(a) * r - 74, rand(0, 6)), { jit: .11 });
+  }
+  const grassMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.02, envMapIntensity: 0.15 });
+  const gm = new THREE.Mesh(G.geometry(), grassMat); gm.receiveShadow = true; scene.add(gm);
+  World.groundMesh = gm;
+
+  // Brick court with PBR
   const bt = brickTex(); bt.repeat.set(24, 27);
-  const court = new THREE.Mesh(new THREE.PlaneGeometry(56, 62), new THREE.MeshLambertMaterial({ map: bt }));
+  const courtMat = new THREE.MeshStandardMaterial({ map: bt, roughness: 0.84, metalness: 0.02, color: 0xffffff });
+  const court = new THREE.Mesh(new THREE.PlaneGeometry(56, 62), courtMat);
   court.rotation.x = -Math.PI / 2; court.position.set(0, 0, 3); court.receiveShadow = true; scene.add(court);
-  // Lối đá giữa sân
+  // Stone paths with enhanced material
   const st = slabTex();
-  const st1 = st.clone(); st1.repeat.set(3, 27); st1.needsUpdate = true;
-  const path = new THREE.Mesh(new THREE.PlaneGeometry(6, 56), new THREE.MeshLambertMaterial({ map: st1 }));
-  path.rotation.x = -Math.PI / 2; path.position.set(0, .012, 17.5); path.receiveShadow = true; scene.add(path);
-  const st2 = st.clone(); st2.repeat.set(24, 3); st2.needsUpdate = true;
-  const cross = new THREE.Mesh(new THREE.PlaneGeometry(50, 6), new THREE.MeshLambertMaterial({ map: st2 }));
-  cross.rotation.x = -Math.PI / 2; cross.position.set(0, .01, 8); cross.receiveShadow = true; scene.add(cross);
-  const st3 = st.clone(); st3.repeat.set(9, 5); st3.needsUpdate = true;
-  const fore = new THREE.Mesh(new THREE.PlaneGeometry(18, 11), new THREE.MeshLambertMaterial({ map: st3 }));
-  fore.rotation.x = -Math.PI / 2; fore.position.set(0, .012, 40.5); fore.receiveShadow = true; scene.add(fore);
+  const makePath = (w,h,rx,rz,repeat) => {
+    const tex = st.clone(); tex.repeat.set(repeat[0],repeat[1]); tex.needsUpdate=true;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78, metalness: 0.06, color: 0xffffff });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w,h), mat);
+    mesh.rotation.x = -Math.PI/2; mesh.position.set(rx, .012, rz); mesh.receiveShadow=true; scene.add(mesh); return mesh;
+  };
+  makePath(6,56,0,17.5,[3,27]);
+  makePath(50,6,0,8,[24,3]);
+  makePath(18,11,0,40.5,[9,5]);
+
+  // Contact shadow for court
+  const shadowCanv = document.createElement('canvas'); shadowCanv.width=256; shadowCanv.height=256;
+  const sctx=shadowCanv.getContext('2d');
+  const grd=sctx.createRadialGradient(128,128,0,128,128,128);
+  grd.addColorStop(0,'rgba(0,0,0,0.22)'); grd.addColorStop(0.5,'rgba(0,0,0,0.08)'); grd.addColorStop(1,'rgba(0,0,0,0)');
+  sctx.fillStyle=grd; sctx.fillRect(0,0,256,256);
+  const shadowTex=new THREE.CanvasTexture(shadowCanv);
+  const shadowPlane=new THREE.Mesh(new THREE.PlaneGeometry(48,48), new THREE.MeshBasicMaterial({map:shadowTex, transparent:true, depthWrite:false, fog:false}));
+  shadowPlane.rotation.x=-Math.PI/2; shadowPlane.position.set(0,0.02,0); scene.add(shadowPlane);
 }
 function buildWalls(W, R) {
   const wall = '#c9b48f', cap = '#8d3a25';
@@ -1242,12 +1405,30 @@ function buildPond(W, R) {
   const { x, z, r } = POND;
   for (let i = 0; i < 40; i++) { const a = i / 40 * 6.283, rr = r + rand(-.05, .18); blob(W, x + Math.cos(a) * rr, .12, z + Math.sin(a) * rr, rand(.45, .68), i % 3 ? '#8a7f6e' : '#9d9281', .55, 1, .08, 0); }
   const water = new THREE.ShaderMaterial({
-    uniforms: { uT: U.uT, uA: { value: new THREE.Color('#31465c') }, uB: { value: new THREE.Color('#a87a65') }, uGlow: U.uGlow },
-    vertexShader: `varying vec2 vP; void main(){ vP=position.xy; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-    fragmentShader: `varying vec2 vP; uniform float uT,uGlow; uniform vec3 uA,uB;
-      void main(){ float w=sin(vP.x*2.6+uT*.8)+sin(vP.y*3.2-uT*.65)+sin((vP.x+vP.y)*1.7+uT*.45)+.5*sin(length(vP)*5.-uT*1.2);
-        float f=.5+.11*w; vec3 c=mix(uA,uB,clamp(f,0.,1.));
-        c+=vec3(1.,.72,.42)*smoothstep(1.6,2.3,w)*.14*uGlow;
+    uniforms: { uT: U.uT, uA: { value: new THREE.Color('#2f4558') }, uB: { value: new THREE.Color('#8a6a58') }, uGlow: U.uGlow, uSun: { value: new THREE.Vector3() } },
+    vertexShader: `varying vec2 vP; varying vec3 vW; void main(){ vP=position.xy; vW=vec3(position.xy,0.); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `varying vec2 vP; varying vec3 vW; uniform float uT,uGlow; uniform vec3 uA,uB,uSun;
+      float fbm(vec2 p){
+        float v=0.; float a=0.5;
+        for(int i=0;i<4;i++){ v+=a*sin(p.x*1.8+uT*0.6)*sin(p.y*1.6-uT*0.5); p*=2.1; a*=0.5; }
+        return v;
+      }
+      void main(){ 
+        float w=sin(vP.x*2.8+uT*.85)+sin(vP.y*3.4-uT*.7)+sin((vP.x+vP.y)*1.9+uT*.5)+.6*sin(length(vP)*6.-uT*1.4);
+        w+=fbm(vP*2.2)*0.5;
+        float f=.5+.12*w; 
+        vec3 c=mix(uA,uB,clamp(f,0.,1.));
+        // Sun reflection
+        float sunRefl = pow(max(dot(normalize(vec3(0.,1.,0.2)), normalize(vec3(0.5,0.6,0.3))),0.), 22.) * 0.18;
+        c+=vec3(1.,.92,.72)*sunRefl*uGlow*1.2;
+        // Glow from lanterns
+        c+=vec3(1.,.74,.46)*smoothstep(1.7,2.5,w)*.18*uGlow;
+        // Depth edge darkening
+        float edge = length(vP)*0.18;
+        c = mix(c, c*0.78, clamp(edge,0.,1.)*0.6);
+        // Specular glitter
+        float glitter = step(0.98, sin(vP.x*45.+uT*2.3)*sin(vP.y*45.-uT*2.1));
+        c+=vec3(1.)*glitter*0.22;
         gl_FragColor=vec4(c,1.);
         #include <colorspace_fragment>
       }`,
@@ -1567,10 +1748,47 @@ function buildActivityProps(W) {
 }
 function buildWorld() {
   World.dummy = new THREE.Object3D();
+  // Init postprocessing - premium bloom
+  (async () => {
+    try{
+      const [ec, rp, ub] = await Promise.all([
+        import('three/addons/postprocessing/EffectComposer.js'),
+        import('three/addons/postprocessing/RenderPass.js'),
+        import('three/addons/postprocessing/UnrealBloomPass.js')
+      ]);
+      const EffectComposer = ec.EffectComposer;
+      const RenderPass = rp.RenderPass;
+      const UnrealBloomPass = ub.UnrealBloomPass;
+      World.composer = new EffectComposer(renderer);
+      World.composer.addPass(new RenderPass(scene, camera));
+      const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.28, 0.55, 0.72);
+      bloom.threshold = 0.82;
+      bloom.radius = 0.42;
+      World.composer.addPass(bloom);
+      World.bloomPass = bloom;
+    }catch(e){ console.warn('Bloom not loaded', e); }
+  })();
   const W = new Batch(), R = new Batch(), S = new Batch();
   buildSky(); buildGround(W); buildWalls(W, R); buildGate(W, R); buildHall(W, R, S); buildBurner(W, S); buildBellTower(W, R);
   const branches = buildBodhi(W); buildPond(W, R); buildGardens(W); buildBackyard(W, R, S); buildPark(R); buildLanterns(W); buildActivityProps(W);
-  const mkMesh = (b, side = THREE.FrontSide) => { const m = new THREE.Mesh(b.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, side })); m.castShadow = true; m.receiveShadow = true; scene.add(m); return m; };
+  const mkMesh = (b, side = THREE.FrontSide) => { 
+    const geom = b.geometry();
+    geom.computeVertexNormals();
+    // UPGRADED PBR material with subtle roughness variation
+    const mat = new THREE.MeshStandardMaterial({ 
+      vertexColors: true, 
+      side,
+      roughness: 0.82,
+      metalness: 0.04,
+      envMapIntensity: 0.18,
+      flatShading: false
+    });
+    const m = new THREE.Mesh(geom, mat); 
+    m.castShadow = true; m.receiveShadow = true; 
+    // Enable better shadow
+    m.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5 });
+    scene.add(m); return m; 
+  };
   mkMesh(W); mkMesh(R, THREE.DoubleSide); mkMesh(S, THREE.DoubleSide);
   buildRibbons(branches); buildFloatingLanterns(); buildSticks(); buildParticles(); buildKoi();
   updateSky(); renderer.shadowMap.needsUpdate = true;
@@ -1584,10 +1802,37 @@ const Player = {
 const SMOOTH = { smooth: true, jit: 0 };
 const _mats = {};
 const lamb = c => _mats[c] || (_mats[c] = new THREE.MeshLambertMaterial({ color: c }));
-function chibiMat() { return World.chibiMat || (World.chibiMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .82, metalness: 0 })); } // chất đất sét
+function chibiMat() { 
+  if(World.chibiMat) return World.chibiMat;
+  // PREMIUM CLAY MATERIAL - Physical based with subsurface feel
+  World.chibiMat = new THREE.MeshPhysicalMaterial({ 
+    vertexColors: true, 
+    roughness: .68, 
+    metalness: 0.02,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.52,
+    sheen: 0.35,
+    sheenRoughness: 0.7,
+    sheenColor: new THREE.Color('#ffd8b8'),
+    emissive: new THREE.Color('#000000'),
+    envMapIntensity: 0.22
+  });
+  return World.chibiMat;
+}
 function shadowDisc() {
-  if (!World.shadowGeo) { World.shadowGeo = new THREE.CircleGeometry(.6, 14); World.shadowGeo.rotateX(-Math.PI / 2); World.shadowMat = new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: .3, depthWrite: false }); }
-  const m = new THREE.Mesh(World.shadowGeo, World.shadowMat); m.position.y = .035; m.renderOrder = 2; return m;
+  if (!World.shadowGeo) { 
+    World.shadowGeo = new THREE.CircleGeometry(.72, 24); World.shadowGeo.rotateX(-Math.PI / 2);
+    // Radial gradient texture for soft contact shadow
+    const size=128;
+    const canv=document.createElement('canvas'); canv.width=canv.height=size;
+    const ctx=canv.getContext('2d');
+    const g=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+    g.addColorStop(0,'rgba(0,0,0,0.38)'); g.addColorStop(0.45,'rgba(0,0,0,0.18)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,size,size);
+    const tex=new THREE.CanvasTexture(canv); tex.colorSpace=THREE.NoColorSpace;
+    World.shadowMat = new THREE.MeshBasicMaterial({ map:tex, transparent: true, depthWrite: false, fog:false }); 
+  }
+  const m = new THREE.Mesh(World.shadowGeo, World.shadowMat); m.position.y = .04; m.renderOrder = 2; m.scale.set(1.15,1,1.15); return m;
 }
 // Phong cách mới theo mẫu "nhân vật chùa": chibi đất sét, đầu to (gần nửa người), mắt đen nhỏ, tai vểnh, búi tóc đỉnh đầu, khăn quấn trán,
 // áo giao lĩnh vạt chéo tay rộng, thắt đai vải, quần lửng, dép quai.
@@ -2665,7 +2910,13 @@ function drawPhoto() {
   renderer.render(scene, shot); x.drawImage(renderer.domElement, M, M, PW, PH);
   renderer.setPixelRatio(pr); renderer.setSize(cw, ch); U.uScale.value = uS; U.uPR.value = uP;
   hide.forEach((o, i) => { o.visible = vis[i]; }); Net.setTagsVisible(true);
-  renderer.render(scene, camera);
+  if(World.composer && World.bloomPass && Game.started){
+    // Update bloom strength based on time of day
+    World.bloomPass.strength = 0.22 + U.uGlow.value*0.18 + U.uNight.value*0.12;
+    World.composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
   const vg = x.createRadialGradient(M + PW / 2, M + PH / 2, PH * .38, M + PW / 2, M + PH / 2, PH * .78);
   vg.addColorStop(0, 'rgba(60,30,0,0)'); vg.addColorStop(1, 'rgba(60,30,0,.3)'); x.fillStyle = vg; x.fillRect(M, M, PW, PH);
   x.strokeStyle = 'rgba(0,0,0,.14)'; x.lineWidth = 2; x.strokeRect(M, M, PW, PH);
@@ -3916,7 +4167,13 @@ function captureScene(ctx, W, H) {
   Family.list.forEach((m, k) => { const s = famSaved[k]; m.C.group.position.set(s[0], s[1], s[2]); m.C.group.rotation.y = s[3]; });
   Player.group.position.set(saved.x, saved.y, saved.z); Player.group.rotation.y = saved.ry; Player.tag.visible = !Game.busy; Net.setTagsVisible(true);
   Game.zones.forEach((z, i) => { z.sprite.visible = markers[i]; });
-  renderer.render(scene, camera);
+  if(World.composer && World.bloomPass && Game.started){
+    // Update bloom strength based on time of day
+    World.bloomPass.strength = 0.22 + U.uGlow.value*0.18 + U.uNight.value*0.12;
+    World.composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
 }
 function drawShareImage(prayer) {
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -4094,7 +4351,13 @@ function loop(now) {
   if (World.smokeBoost.value > 0) World.smokeBoost.value = Math.max(0, World.smokeBoost.value - dt / 16);
   for (const r of Fx.playerRibbons) { r.mesh.rotation.z = Math.sin(Game.t * 1.3 + r.ph) * .045; r.mesh.rotation.y = r.base + Math.sin(Game.t * .8 + r.ph) * .08; }
   updateSitZones(); updateZones();
-  renderer.render(scene, camera);
+  if(World.composer && World.bloomPass && Game.started){
+    // Update bloom strength based on time of day
+    World.bloomPass.strength = 0.22 + U.uGlow.value*0.18 + U.uNight.value*0.12;
+    World.composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
   // Máy yếu: tự giảm độ phân giải
   _fpsT += dt; _fpsN++;
   if (_fpsT > 3) {
