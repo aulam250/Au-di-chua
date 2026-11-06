@@ -213,6 +213,24 @@ textarea{width:100%;height:96px;resize:none;border-radius:14px;border:2px solid 
 #sharePreview{display:block;width:auto;max-width:100%;max-height:58vh;margin:0 auto 12px;border-radius:12px;box-shadow:0 3px 14px rgba(0,0,0,.3)}
 #fatal{position:fixed;inset:0;z-index:60;background:#2a1a30;color:#ffeccb;display:flex;align-items:center;justify-content:center;text-align:center;padding:28px;font-size:17px;line-height:1.5}
 @media (max-height:500px){ #welcome svg.sil,#welcome .sun{display:none} #toast{bottom:calc(10px + var(--sab));max-width:42vw} }
+/* Đình Lá Số: biểu mẫu ngày giờ sinh và bàn 12 cung */
+.tv-field{display:flex;flex-direction:column;gap:5px;margin:0 0 10px;font-size:14px;font-weight:600;color:var(--ink)}
+.tv-field input,.tv-field select{height:48px;border-radius:12px;border:2px solid var(--line);padding:0 12px;font-size:17px;background:#fff;color:var(--ink);width:100%}
+.tv-check{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--ink2);margin:2px 0 12px;line-height:1.4}
+.tv-check input{width:20px;height:20px;flex:none;margin-top:1px}
+.tv-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:4px 0 12px;font-size:11px;color:var(--ink)}
+.tv-cell{background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 5px 6px;min-height:92px;min-width:0;overflow-wrap:anywhere;line-height:1.25}
+.tv-cell.menh{border-color:var(--red);box-shadow:0 0 0 1.5px var(--red) inset;background:#fff6ec}
+.tv-pn{font-weight:700;color:var(--red2);font-size:11.5px}
+.tv-cc{color:var(--ink2);font-size:10px}
+.tv-ms{font-weight:700;font-size:11.5px;margin-top:3px}
+.tv-br{font-weight:500;color:var(--ink2);font-size:10px}
+.tv-hoa{display:inline-block;padding:0 4px;border-radius:4px;background:var(--gold);color:#3a2408;font-size:9.5px;font-weight:700;margin-left:2px}
+.tv-mi{color:var(--ink2);font-size:10px;margin-top:3px}
+.tv-center{grid-column:2/4;grid-row:2/4;background:linear-gradient(180deg,#fff,#fff3dc);border:1px solid var(--gold2);border-radius:10px;padding:8px;display:flex;flex-direction:column;justify-content:center;text-align:center;gap:3px;font-size:11.5px;line-height:1.35;color:var(--ink)}
+.tv-center b{font-family:var(--serif);font-size:15px;color:var(--red2)}
+.tv-note{text-align:left}
+.tv-note p{font-size:16.5px}
 @media (prefers-reduced-motion:reduce){#action{animation:none}}
 @media (min-width:820px) and (pointer:fine){ #joy{display:none} #action{bottom:calc(40px + var(--sab));right:calc(50% - 90px);min-width:180px} #toast{bottom:150px} }
 
@@ -2826,7 +2844,7 @@ function updateMonks(dt, t) {
   // Thầy ngồi thiền trước ban thờ
   S.lean = .05 + Math.max(0, Math.sin(t * .4)) ** 4 * .12; // thỉnh thoảng cúi nhẹ
   placeNpc(S, dt, t, 0);
-  updatePhotographer(dt, t); updateCats(dt, t);
+  updatePhotographer(dt, t); updateSeer(dt, t); updateCats(dt, t);
 }
 // Khách trong sân nghe chuông thì dừng lại chắp tay hướng về gác chuông
 function guestsReact(x, z) {
@@ -3008,6 +3026,160 @@ function showPhotoResult(c) {
     $('#photoShare').onclick = () => { endActivity(); presentShareBlob(blob, 'anh-chua-an-lac.jpg'); };
     $('#doneBtn').onclick = endActivity;
   }, 'image/jpeg', .9);
+}
+
+/* ===== THẦY BÓI VUI ngồi đối diện chỗ chụp ảnh: hỏi tiền tài, tình duyên, sự nghiệp…, gieo ba đồng xu rồi phán toàn điều vui ===== */
+const SEER = { x: 4.4, z: 42.6, spot: { x: 3.05, z: 42.6 } };
+const SEER_CALL = ['Xem bói vui đây, nói toàn chuyện tốt!', 'Lại đây thầy xem cho một quẻ nào!', 'Tiền tài, tình duyên, thầy phán hết!', 'Mặt sáng thế này, quẻ chắc chắn đẹp!', 'Xem vui thôi, không lấy tiền đâu!'];
+const SEER_TOPICS = [
+  { k: 'tien', n: 'Tiền tài', e: '💰', a: [
+    'Tiền vào như nước sông Đà, tiền ra nhỏ giọt như cà phê phin.',
+    'Sắp tới con sẽ nhặt được tiền… trong túi áo khoác cũ. Vẫn là tiền!',
+    'Ví con sắp dày lên. Hoá đơn ít đi, lương thưởng nhiều thêm.',
+    'Quý nhân phù trợ: có người sắp mời con đi ăn, khỏi trả tiền.',
+    'Tháng này tiêu ít mà vui nhiều, cuối tháng vẫn còn dư tiền trà sữa.',
+    'Thần Tài đang ghé ngang nhà, nhớ mở cửa cho thoáng nhé.',
+    'Tiền không mọc trên cây, nhưng con sẽ hái được vài chùm thưởng bất ngờ.',
+    'Làm đâu thắng đó, mua gì cũng được giá hời.',
+    'Lộc nhỏ đến đều như mưa xuân: hôm nay chút, mai chút, góp lại thành to.',
+    'Con có tướng giữ của: tiền vào túi rồi là ở lại chơi lâu lắm.',
+  ] },
+  { k: 'duyen', n: 'Tình duyên', e: '💗', a: [
+    'Duyên đang tới gần lắm rồi, có khi đang đứng sau lưng con đó.',
+    'Người thương sắp nhắn tin trước. Con chỉ việc trả lời thật dễ thương.',
+    'Đào hoa nở rộ! Nhớ cười nhiều vào, ai nhìn cũng mến.',
+    'Ai có đôi thì ngọt như chè, ai còn một mình thì sắp hết rồi.',
+    'Tháng tới có một cuộc gặp rất tình cờ, nhớ mặc đồ đẹp khi ra đường.',
+    'Tơ hồng đã se, chỉ chờ con gật đầu thôi.',
+    'Hai người hợp nhau như cơm với cá kho, càng ăn càng đưa.',
+    'Tình cảm êm như mặt hồ sen, thỉnh thoảng có cá quẫy cho vui.',
+    'Người ấy đang nghĩ về con nhiều hơn con tưởng đấy.',
+    'Duyên lành tự đến khi lòng mình thảnh thơi. Cứ vui là có người thương.',
+  ] },
+  { k: 'nghiep', n: 'Sự nghiệp', e: '🚀', a: [
+    'Công việc thuận buồm xuôi gió, sếp khen mà đồng nghiệp cũng quý.',
+    'Sắp có cơ hội mới, đến bất ngờ như chuông chùa giữa trưa.',
+    'Làm một được mười, ý tưởng tuôn ra như suối.',
+    'Năm nay thăng tiến nhẹ nhàng, lương tăng mà việc không tăng.',
+    'Con có quý nhân nâng đỡ, cứ chăm chỉ là gặp thời.',
+    'Họp ít, việc trôi, về nhà đúng giờ ăn cơm.',
+    'Dự án sắp tới thành công rực rỡ, ăn mừng nhớ gọi thầy.',
+    'Cứ đi chậm mà chắc, đỉnh núi vẫn ở đó chờ con.',
+    'Tháng này đầu óc minh mẫn, việc khó cũng hoá dễ.',
+    'Đổi việc thì gặp chỗ tốt, ở lại thì được trọng dụng. Đường nào cũng sáng.',
+  ] },
+  { k: 'khoe', n: 'Sức khoẻ', e: '🍀', a: [
+    'Khoẻ như voi, ăn ngon ngủ kỹ, sáng dậy da dẻ hồng hào.',
+    'Bớt thức khuya một chút là khoẻ re, tinh thần phơi phới.',
+    'Đi bộ nhiều như hôm nay lên chùa là sống lâu trăm tuổi.',
+    'Năm nay ít ốm vặt, cảm cúm đi lạc mất đường tới nhà con.',
+    'Uống đủ nước, cười đủ nhiều, bác sĩ sẽ nhớ con lắm vì lâu không gặp.',
+    'Tâm an thì thân khoẻ. Thầy thấy con đang an lắm rồi.',
+    'Lưng thẳng, vai nhẹ, bước chân thanh thoát như chú tiểu quét sân.',
+    'Sức khoẻ dồi dào, leo núi cũng không thở dốc.',
+  ] },
+  { k: 'hoc', n: 'Học hành', e: '📚', a: [
+    'Thi đâu đậu đó, câu nào cũng như đã từng ôn qua.',
+    'Đầu óc sáng như đèn lồng đêm rằm, học một nhớ mười.',
+    'Sắp có tin vui về điểm số, nhớ khoe cả nhà nhé.',
+    'Chăm thêm một chút, kết quả bất ngờ to đùng.',
+    'Thầy cô quý, bạn bè thương, bài khó có người chỉ.',
+    'Đọc sách thấy hay, học ngoại ngữ thấy dễ. Đúng thời học giỏi!',
+    'Quẻ học hành đẹp như trang vở mới, viết gì cũng tròn chữ.',
+    'Đi thi nhớ mang bút dự phòng. Còn lại để thầy lo phần may mắn.',
+  ] },
+  { k: 'nha', n: 'Gia đạo', e: '🏡', a: [
+    'Nhà cửa ấm êm, cơm canh lúc nào cũng có người khen ngon.',
+    'Con cháu ngoan hiền, ông bà mạnh khoẻ, tiếng cười rộn ràng.',
+    'Sắp có tin vui trong nhà, có khi là cỗ to đấy.',
+    'Anh em hoà thuận, ai cũng tranh nhau rửa bát.',
+    'Cả nhà sắp có chuyến đi chơi xa thật vui.',
+    'Nhà có phúc lớn: cãi nhau năm phút, làm lành năm giây.',
+    'Bà và bé đi cùng là lộc rồi. Quẻ gia đạo đẹp mười phân vẹn mười.',
+    'Bếp đỏ lửa, cửa rộng mở, khách quý ghé chơi thường xuyên.',
+  ] },
+];
+const SEER_LUCK = { colors: ['đỏ', 'vàng', 'xanh ngọc', 'trắng', 'hồng', 'xanh lá', 'tím', 'cam'], items: ['chiếc nón lá', 'một bông sen', 'cái quạt giấy', 'chuỗi hạt', 'nén hương thơm', 'cốc trà sen', 'quả cam', 'đèn lồng nhỏ'], hours: ['giờ Thìn (7–9 giờ sáng)', 'giờ Tỵ (9–11 giờ trưa)', 'giờ Ngọ (11–13 giờ)', 'giờ Mùi (13–15 giờ)', 'giờ Thân (15–17 giờ)', 'giờ Dậu (17–19 giờ)'] };
+const SEER_LEVEL = ['Đại cát', 'Thượng cát', 'Cát tường', 'Hanh thông', 'Như ý'];
+function buildSeer() {
+  const T = Monks.seer = makeNpc({ robe: '#3a3a46', robeD: '#2a2a34', collar: '#e9e1cf', belt: '#8a2a1a', pants: '#2d2a26', skin: '#e3b48a', hair: '#d9d4c7', hairStyle: 'bun', band: '#2a2a34', beard: '#e8e4da', brows: '#e8e4da', mala: true }, SEER.x, SEER.z, -Math.PI / 2, 1);
+  T.pose = 'sit'; T.lean = .06; T.talkCD = 5; T.home = -Math.PI / 2; Col.circle(T.x, T.z, .5);
+  const b = new Batch(), sm = { smooth: true, jit: 0 };
+  b.add(new THREE.CylinderGeometry(1.1, 1.1, .04, 6), '#c9a46a', TRS(SEER.x - .5, .02, SEER.z)); // chiếu cói
+  box(b, SEER.x - .75, 0, SEER.z, .55, .32, .8, '#6e3a22'); box(b, SEER.x - .75, .32, SEER.z, .62, .04, .9, '#8a5a34'); // bàn thấp
+  box(b, SEER.x - .75, .36, SEER.z + .22, .3, .01, .38, '#f4e6c5'); // tờ giấy quẻ
+  b.add(new THREE.CylinderGeometry(.07, .06, .14, 10), '#a5301f', TRS(SEER.x - .72, .43, SEER.z - .26), sm); // chén đựng xu
+  // Cái ô che nắng và biển
+  cyl(b, SEER.x + .55, 0, SEER.z + .7, .03, .03, 2.7, 6, '#6b4a2e');
+  b.add(new THREE.ConeGeometry(1.5, .55, 12, 1, true), '#b23a26', TRS(SEER.x + .3, 2.75, SEER.z + .4), sm);
+  for (const o of [-.6, .6]) box(b, SEER.x + 1.2, 0, SEER.z + o, .07, 1.7, .07, '#a07a45');
+  const m = new THREE.Mesh(b.geometry(), chibiMat()); m.castShadow = true; scene.add(m);
+  // Ô che hai mặt (nón mở) nên dùng mặt đôi
+  m.material = World.seerMat || (World.seerMat = chibiMat().clone()); m.material.side = THREE.DoubleSide;
+  addPlaque('Xem Bói Vui', SEER.x + 1.2, 1.45, SEER.z, 1.6, .45, -Math.PI / 2, 600, 160, 92); addPlaque('Xem Bói Vui', SEER.x + 1.26, 1.45, SEER.z, 1.6, .45, Math.PI / 2, 600, 160, 92);
+  Col.box(SEER.x - 1.05, SEER.x - .45, SEER.z - .45, SEER.z + .45, 0); Col.circle(SEER.x + 1.2, SEER.z, .5);
+  // Ba đồng xu gieo quẻ
+  const cg = new THREE.CylinderGeometry(.045, .045, .012, 14), cm = new THREE.MeshStandardMaterial({ color: '#d9a940', metalness: .6, roughness: .35 });
+  World.coins = [0, 1, 2].map(i => { const c = new THREE.Mesh(cg, cm); c.position.set(SEER.x - .72, .4, SEER.z - .26); c.visible = false; scene.add(c); return c; });
+}
+function updateSeer(dt, t) {
+  const T = Monks.seer; if (!T) return; const P = Player;
+  T.talkCD -= dt;
+  if (!T.busy) {
+    const d = Math.hypot(P.x - T.x, P.z - T.z);
+    T.ry = dampAngle(T.ry, d < 7 ? Math.atan2(P.x - T.x, P.z - T.z) : T.home, 2.5, dt);
+    if (d < 6.5 && T.talkCD <= 0 && !Game.busy) { say(T, pick(SEER_CALL)); T.talkCD = rand(18, 30); T.nodT = 1.2; }
+  }
+  if (T.nodT > 0) { T.nodT -= dt; T.C.nod = Math.max(0, Math.sin(t * 5)) * .12; } else T.C.nod = damp(T.C.nod, 0, 6, dt);
+  T.strikeA = T.shakeT > 0 ? (T.shakeT -= dt, Math.sin(t * 22) * .25) : damp(T.strikeA, 0, 8, dt);
+  T.pose = T.shakeT > 0 ? 'chant' : T.busy ? 'mala' : 'sit';
+  placeNpc(T, dt, t, 0);
+}
+async function actSeer() {
+  beginActivity(); const id = Game.actId, T = Monks.seer, P = Player; T.busy = true;
+  say(T, pick(['Ngồi xuống đây con, xem quẻ vui nào.', 'A, khách quý! Ngồi đi con.']));
+  await walkTo(SEER.spot.x, SEER.spot.z, 2.6); if (id !== Game.actId) return;
+  P.x = SEER.spot.x; P.z = SEER.spot.z; P.vx = P.vz = 0; faceTo(T.x, T.z); T.ry = Math.atan2(P.x - T.x, P.z - T.z);
+  P.pose = 'sit'; Game.sitting = true; Game.famPose = 'idle'; Game.famBack = 2.2;
+  focusOn((P.x + T.x) / 2, .55, SEER.z, -.25, .28, 4.6); // nhìn ngang từ phía đường, thấy mặt cả hai
+  seerMenu();
+}
+function seerMenu() {
+  openSheet(`<h2 class="sheet-title">Thầy bói vui</h2><p class="sheet-sub">Thầy vuốt râu: “Con muốn hỏi chuyện gì? Xem cho vui, toàn điều lành thôi.”</p>
+    <div class="chips" id="seerTopics">${SEER_TOPICS.map((q, i) => `<button data-i="${i}">${q.e} ${q.n}</button>`).join('')}<button data-i="all">🔮 Xem tổng quát</button></div>
+    <button class="btn ghost wide" id="cancelBtn">Thôi, con cảm ơn thầy</button>
+    <p class="small" style="text-align:center;margin:8px 0 0">Chỉ là trò vui, đừng tin là thật nhé.</p>`);
+  $('#seerTopics').onclick = e => { const b = e.target.closest('button'); if (b) castSeer(b.dataset.i); };
+  $('#cancelBtn').onclick = endActivity;
+}
+const _seerLast = {};
+function seerAnswer(q) { let i; do { i = Math.random() * q.a.length | 0; } while (q.a.length > 1 && i === _seerLast[q.k]); _seerLast[q.k] = i; return q.a[i]; }
+async function castSeer(which) {
+  closeSheet(); const id = Game.actId, T = Monks.seer, ok = () => id === Game.actId;
+  const topics = which === 'all' ? SEER_TOPICS.slice().sort(() => Math.random() - .5).slice(0, 3) : [SEER_TOPICS[+which]];
+  caption(which === 'all' ? 'Thầy lắc chén xu, nhẩm tính cả năm…' : `Thầy lắc chén xu, nhẩm quẻ ${topics[0].n.toLowerCase()}…`, 2600);
+  T.shakeT = 1.6; for (let k = 0; k < 6; k++) setTimeout(() => Snd.click(.18, 3200), k * 230);
+  await wait(1700); if (!ok()) return;
+  // Gieo ba đồng xu ra mặt bàn
+  const base = new THREE.Vector3(SEER.x - .72, .42, SEER.z - .26), faces = [];
+  World.coins.forEach((c, i) => {
+    c.visible = true; const tx = SEER.x - .78 + rand(-.18, .12), tz = SEER.z + rand(-.15, .3), up = Math.random() < .5; faces.push(up);
+    tween(.55 + i * .08, k => { c.position.set(lerp(base.x, tx, k), base.y + Math.sin(k * Math.PI) * .45 + (k > .95 ? -.04 : 0), lerp(base.z, tz, k)); c.rotation.set(k * 14 + i, 0, k * 9); })
+      .then(() => { c.rotation.set(up ? 0 : Math.PI, rand(0, 6), 0); c.position.y = .37; Snd.click(.28, 2200); });
+  });
+  await wait(1000); if (!ok()) return;
+  T.nodT = 1.6; caption('');
+  const heads = faces.filter(Boolean).length, level = SEER_LEVEL[(heads + (Math.random() * 3 | 0)) % SEER_LEVEL.length];
+  const luck = `Màu may mắn: <b>${pick(SEER_LUCK.colors)}</b> · Số đẹp: <b>${1 + Math.random() * 99 | 0}</b><br>Giờ hoàng đạo: <b>${pick(SEER_LUCK.hours)}</b> · Vật hộ mệnh: <b>${pick(SEER_LUCK.items)}</b>`;
+  Store.data.seer = (Store.data.seer || 0) + 1; Store.save();
+  openSheet(`<h2 class="sheet-title">Quẻ ${level}</h2><p class="sheet-sub">${'⚪'.repeat(heads)}${'🟤'.repeat(3 - heads)} · Thầy gật gù: “Quẻ đẹp lắm con ạ!”</p>
+    ${topics.map(q => `<div class="card" style="text-align:left"><div class="no">${q.e} ${q.n.toUpperCase()}</div><p>${seerAnswer(q)}</p></div>`).join('')}
+    <p class="small" style="text-align:center;margin:-2px 0 12px;line-height:1.6">${luck}</p>
+    ${resultButtons('againBtn', 'Hỏi chuyện khác', 'doneBtn', 'Con cảm ơn thầy')}`);
+  $('#againBtn').onclick = () => { World.coins.forEach(c => { c.visible = false; }); seerMenu(); };
+  $('#doneBtn').onclick = endActivity;
+  if (Family.list[1]?.on && Math.random() < .6) setTimeout(() => say(Family.list[1], pick(['Thầy xem cho con nữa!', 'Hay quá bà ơi!', 'Con cũng muốn có người yêu!'])), 900);
+  else if (Family.list[0]?.on && Math.random() < .5) setTimeout(() => say(Family.list[0], pick(['Xem vui thôi cháu nhé.', 'Nghe sướng cả tai!'])), 900);
 }
 
 /* ===== XUẤT GIA (trong trò chơi): Thầy cạo tóc ba lượt, trao áo tràng, đặt pháp danh; hoàn tục được bất cứ lúc nào ===== */
@@ -3651,10 +3823,11 @@ const PARK_BOUND = { x0: -104, x1: 104, z0: -238, z1: 90 };
 const STREAM = { x: -45, w: 5, bridges: [8, -140] };
 const LAKE = { x: -75, z: -20, r: 17 };
 const PARK = [[-100, -52, -235, 85], [-41, -31, -235, 85], [32, 100, -235, 85], [-26, 26, -232, -98], [-48, -16, 50, 86], [16, 48, 50, 86]]; // vùng khách dạo vườn
+const TUVI = { x: 84, z: -2, lib: null, loading: null }; // Đình Lá Số ở vườn Đông, cạnh vườn hoa
 const PLACES = [
   ['Cổng tam quan', 0, 44, 0, 30], ['Sân chùa', 0, 16, 0, 0], ['Chánh điện', 0, -12, 0, -24], ['Hậu viện, sân đình', 0, -36, 0, -54], ['Ao phóng sinh, Quan Âm', 0, -66, -14, -72],
   ['Suối và cầu đá', -51, 18, -45, 8], ['Hồ sen, hòn non bộ', -55, -8, -75, -20], ['Rừng trúc', -78, -90, -78, -130], ['Cây đa cổ thụ', -58, 42, -72, 55],
-  ['Vườn đá thiền', 46, 45, 62, 45], ['Vườn hoa', 44, 6, 60, 6], ['Vườn tháp', 48, -55, 64, -55], ['Cây si, ao nhỏ', 60, -124, 75, -140],
+  ['Vườn đá thiền', 46, 45, 62, 45], ['Vườn hoa', 44, 6, 60, 6], ['Vườn tháp', 48, -55, 64, -55], ['Cây si, ao nhỏ', 60, -124, 75, -140], ['Đình Lá Số', TUVI.x, TUVI.z + 7, TUVI.x, TUVI.z],
   ['Đường thông, Bảo tháp', 0, -104, 0, -218], ['Ruộng lúa, cây đa đầu làng', 8, 62, 60, 70],
 ];
 // Cây cổ thụ: da (đa, rễ phụ buông), si, dai (đại hoa trắng), thong (thông già), bang (bàng)
@@ -3787,6 +3960,11 @@ function buildPark(R) {
     Col.box(fx - 1.8, fx + 1.8, fz - 1.1, fz + 1.1);
   }
   stoneBench(PE, 60, -12); stoneBench(PE, 74, 22);
+  // ---- Đình Lá Số: bàn gỗ, nghiên mực, cuốn sổ mở (xem lá số cho vui)
+  pavilion(PE, R, TUVI.x, TUVI.z, 'Đình Lá Số');
+  box(PE, TUVI.x, 0, TUVI.z - .9, 2, .78, 1, '#6e4427', 0, .03); box(PE, TUVI.x, .78, TUVI.z - .9, 2.2, .08, 1.15, '#8a5a34', 0, .03);
+  box(PE, TUVI.x - .35, .86, TUVI.z - .9, .9, .03, .62, '#f4e6c5', 0, .02); box(PE, TUVI.x + .35, .86, TUVI.z - .9, .9, .03, .62, '#efdfbd', 0, .02);
+  box(PE, TUVI.x + .78, .86, TUVI.z - 1.15, .2, .05, .3, '#2b1c12'); Col.box(TUVI.x - 1.12, TUVI.x + 1.12, TUVI.z - 1.5, TUVI.z - .3);
   // ---- Vườn tháp: chín bảo tháp, cây đại trổ hoa
   for (let i = 0; i < 3; i++) for (let k = 0; k < 3; k++) stupa(PE, 56 + i * 9, -64 + k * 9, 3 + (i + k) % 4, .75 + ((i * 3 + k) % 3) * .12);
   for (const [x, z] of [[51, -70], [51, -50], [83, -70], [83, -50], [67, -76], [67, -42]]) ancientTree(PE, x, z, .8, 'dai');
@@ -3856,6 +4034,7 @@ function endActivity() {
   for (const c of Cats.list) if (c.state === 'pet') { c.state = 'sit'; c.timer = rand(3, 6); }
   if (World.bowl) World.bowl.visible = false;
   if (Monks.photo) { Monks.photo.busy = false; Monks.photo.lean = 0; Monks.photo.pose = 'idle'; }
+  if (Monks.seer) { Monks.seer.busy = false; Monks.seer.shakeT = 0; } World.coins?.forEach(c => { c.visible = false; });
   if (Game.seatK >= 0) { Guests.slotUsed[Game.seatK] = false; Game.seatK = -1; }
   Game.famPose = null; Game.famBack = 0; if (Player.lookOv) { Player.lookOv = null; rebuildPlayerKeepPose(); }
 }
@@ -4175,6 +4354,108 @@ function actFortune() {
   startQue();
 }
 
+/* ===== HOẠT ĐỘNG 8: XEM LÁ SỐ (giải trí) – lập bàn 12 cung bằng thư viện mã nguồn mở iztro (MIT), lời bình chỉ nói về tính cách =====
+   Ngày giờ sinh chỉ dùng trên máy này: không gửi cho người chơi khác, không lên máy chủ, không vào ảnh chia sẻ; chỉ lưu khi người chơi đồng ý. */
+const IZTRO_URL = 'https://cdn.jsdelivr.net/npm/iztro@2.5.8/+esm'; // chỉ tải khi mở Đình Lá Số
+const TUVI_HOURS = ['Tý sớm (0h–1h)', 'Sửu (1h–3h)', 'Dần (3h–5h)', 'Mão (5h–7h)', 'Thìn (7h–9h)', 'Tỵ (9h–11h)', 'Ngọ (11h–13h)', 'Mùi (13h–15h)', 'Thân (15h–17h)', 'Dậu (17h–19h)', 'Tuất (19h–21h)', 'Hợi (21h–23h)', 'Tý muộn (23h–24h)'];
+// Vị trí 12 cung trên bàn 4×4 theo địa chi (hàng, cột), giữa là ô thông tin
+const TUVI_CELL = { 'Tỵ': [1, 1], 'Ngọ': [1, 2], 'Mùi': [1, 3], 'Thân': [1, 4], 'Thìn': [2, 1], 'Dậu': [2, 4], 'Mão': [3, 1], 'Tuất': [3, 4], 'Dần': [4, 1], 'Sửu': [4, 2], 'Tý': [4, 3], 'Hợi': [4, 4] };
+const TUVI_CELL_BY_INDEX = [[4, 1], [3, 1], [2, 1], [1, 1], [1, 2], [1, 3], [1, 4], [2, 4], [3, 4], [4, 4], [4, 3], [4, 2]]; // dự phòng: thứ tự Dần → Sửu
+// Lời bình viết riêng cho game: chỉ tả tính cách theo cách hiểu truyền thống, không đoán chuyện tốt xấu, tiền bạc hay sức khoẻ
+const TUVI_STARS = {
+  'Tử Vi': 'Tử Vi được xem là sao đứng đầu, gắn với sự điềm đạm, có trách nhiệm và thích sắp xếp mọi việc cho chu toàn. Người ta hay tả đây là người biết lắng nghe, dễ được người khác tin cậy.',
+  'Thiên Cơ': 'Thiên Cơ gắn với sự nhanh nhạy, ham học hỏi và óc suy tính khéo léo. Hình ảnh thường gặp là người thích tìm hiểu, hay nghĩ ra cách làm mới cho những việc quen thuộc.',
+  'Thái Dương': 'Thái Dương là mặt trời, gắn với sự ấm áp, rộng rãi và muốn mang điều tốt cho người xung quanh. Người ta hay ví đó là người sống thẳng thắn, nhiệt tình.',
+  'Vũ Khúc': 'Vũ Khúc gắn với tính kiên định, làm việc gì cũng chắc chắn và giữ lời. Đây là hình ảnh người bền bỉ, nói ít làm nhiều.',
+  'Thiên Đồng': 'Thiên Đồng được gọi là phúc tinh, gắn với tính hiền hoà, dễ gần và biết vui với những điều giản dị. Người xưa hay tả là người có tâm hồn trẻ trung, thích sự êm ả.',
+  'Liêm Trinh': 'Liêm Trinh gắn với sự nguyên tắc, có chính kiến và giàu cảm xúc bên trong. Hình ảnh thường gặp là người sống có trước có sau, coi trọng sự ngay thẳng.',
+  'Thiên Phủ': 'Thiên Phủ gắn với sự vững vàng, chu đáo và biết lo toan. Người ta hay ví như người giữ nhà, ở đâu cũng khiến mọi thứ ngăn nắp, yên ổn.',
+  'Thái Âm': 'Thái Âm là mặt trăng, gắn với sự dịu dàng, tinh tế và giàu tình cảm. Hình ảnh thường gặp là người chu đáo, để ý cả những điều nhỏ của người thân.',
+  'Tham Lang': 'Tham Lang gắn với sự hoạt bát, nhiều tài lẻ và yêu cái đẹp. Người xưa hay tả là người thích khám phá, quen biết rộng và biết làm không khí vui lên.',
+  'Cự Môn': 'Cự Môn gắn với lời nói và sự suy xét kỹ lưỡng. Hình ảnh thường gặp là người ăn nói có lý lẽ, thích tìm hiểu cho đến nơi đến chốn.',
+  'Thiên Tướng': 'Thiên Tướng gắn với sự công bằng, tử tế và hay giúp đỡ người khác. Người ta hay ví là người đứng ra hoà giải, giữ cho mọi người được hài hoà.',
+  'Thiên Lương': 'Thiên Lương là sao che chở, gắn với sự hiền hậu, chín chắn và lòng thương người. Hình ảnh thường gặp là người hay chăm lo, có lời khuyên ấm áp.',
+  'Thất Sát': 'Thất Sát gắn với sự quả quyết, dám nghĩ dám làm và ý chí mạnh mẽ. Người xưa hay tả là người không ngại thử thách, đã nhận việc thì làm tới cùng.',
+  'Phá Quân': 'Phá Quân gắn với tinh thần đổi mới, thích bắt đầu những điều mới và không ngại thay đổi. Hình ảnh thường gặp là người năng động, có cách nghĩ riêng.',
+};
+function loadTuvi() {
+  if (TUVI.lib) return Promise.resolve(TUVI.lib);
+  return TUVI.loading || (TUVI.loading = import(IZTRO_URL).then(m => (TUVI.lib = m)).catch(e => { TUVI.loading = null; throw e; }));
+}
+function actTuvi() {
+  beginActivity();
+  const id = Game.actId;
+  walkTo(TUVI.x, TUVI.z + .75, 2.4).then(() => { if (id === Game.actId) faceTo(TUVI.x, TUVI.z - 1); });
+  focusOn(TUVI.x, 1, TUVI.z - .5, 0, .36, 5.4);
+  loadTuvi().catch(() => {}); // tải sẵn trong lúc người chơi nhập ngày sinh
+  tuviForm();
+}
+function tuviForm(msg) {
+  const saved = Store.data.tuvi, today = new Date().toISOString().slice(0, 10);
+  openSheet(`<h2 class="sheet-title">Xem lá số</h2>
+    <p class="sheet-sub">Lập bàn 12 cung Tử Vi từ ngày giờ sinh, kèm vài dòng về tính cách. Mang tính giải trí.</p>
+    <label class="tv-field" for="tvDate">Ngày sinh (dương lịch)<input type="date" id="tvDate" min="1900-01-01" max="${today}" value="${saved ? escapeHtml(saved.d) : ''}"></label>
+    <label class="tv-field" for="tvHour">Giờ sinh<select id="tvHour"><option value="x">Không rõ giờ sinh</option>${TUVI_HOURS.map((h, i) => `<option value="${i}"${saved && saved.h === i ? ' selected' : ''}>${h}</option>`).join('')}</select></label>
+    <div class="choice"><button id="tvMale" class="${saved && saved.g === 'male' ? 'sel' : ''}">Nam</button><button id="tvFemale" class="${saved && saved.g === 'female' ? 'sel' : ''}">Nữ</button></div>
+    <label class="tv-check" for="tvKeep"><input type="checkbox" id="tvKeep"${saved ? ' checked' : ''}> Nhớ ngày giờ sinh trên máy này cho lần sau. Không gửi đi đâu cả.</label>
+    <p class="warn${msg ? '' : ' hide'}" id="tvWarn">${msg ? escapeHtml(msg) : ''}</p>
+    <div class="row"><button class="btn" id="cancelBtn">Để sau</button><button class="btn main" id="tvGo">Lập lá số</button></div>`);
+  let g = saved ? saved.g : null;
+  if (saved && saved.h === null) $('#tvHour').value = 'x';
+  const pickG = v => { g = v; $('#tvMale').classList.toggle('sel', v === 'male'); $('#tvFemale').classList.toggle('sel', v === 'female'); };
+  $('#tvMale').onclick = () => pickG('male'); $('#tvFemale').onclick = () => pickG('female');
+  $('#cancelBtn').onclick = endActivity;
+  $('#tvGo').onclick = async () => {
+    const warn = $('#tvWarn'), say = t => { warn.textContent = t; warn.classList.remove('hide'); };
+    const v = $('#tvDate').value, m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+    const dt = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;
+    if (!m || !dt || dt.getUTCDate() !== +m[3] || +m[1] < 1900 || v > today) { say('Bạn chọn ngày sinh hợp lệ, từ năm 1900 đến hôm nay nhé.'); return; }
+    if (!g) { say('Bạn chọn Nam hoặc Nữ nhé.'); return; }
+    const hv = $('#tvHour').value, h = hv === 'x' ? null : +hv;
+    if ($('#tvKeep').checked) Store.data.tuvi = { d: v, h, g }; else delete Store.data.tuvi;
+    Store.save();
+    const btn = $('#tvGo'), id = Game.actId; btn.disabled = true; btn.textContent = 'Đang lập lá số…';
+    let lib;
+    try { lib = await loadTuvi(); } catch (e) { if (id === Game.actId) { btn.disabled = false; btn.textContent = 'Lập lá số'; say('Chưa tải được bộ lập lá số. Bạn kiểm tra kết nối mạng rồi thử lại nhé.'); } return; }
+    if (id !== Game.actId) return;
+    let a;
+    try { a = lib.astro.bySolar(`${+m[1]}-${+m[2]}-${+m[3]}`, h === null ? 0 : h, g, true, 'vi-VN'); }
+    catch (e) { btn.disabled = false; btn.textContent = 'Lập lá số'; say('Chưa lập được lá số cho ngày này. Bạn thử ngày khác nhé.'); return; }
+    tuviShow(a, { y: +m[1], mo: +m[2], d: +m[3], h });
+  };
+}
+function tuviShow(a, b) {
+  const E = s => escapeHtml(String(s ?? '')), pal = a.palaces;
+  const cell = (p, i) => {
+    const pos = TUVI_CELL[p.earthlyBranch] || TUVI_CELL_BY_INDEX[i];
+    const hoa = s => s.mutagen ? `<span class="tv-hoa">${E(s.mutagen)}</span>` : '';
+    const major = p.majorStars.map(s => `<div class="tv-ms">${E(s.name)}${s.brightness ? ` <span class="tv-br">${E(s.brightness)}</span>` : ''}${hoa(s)}</div>`).join('');
+    const minor = p.minorStars.slice(0, 4).map(s => E(s.name) + hoa(s)).join(', ');
+    return `<div class="tv-cell${p.name === 'Mệnh' ? ' menh' : ''}" style="grid-row:${pos[0]};grid-column:${pos[1]}">
+      <div class="tv-pn">${E(p.name)}${p.isBodyPalace ? ' · Thân' : ''}</div><div class="tv-cc">${E(p.heavenlyStem)} ${E(p.earthlyBranch)}</div>
+      ${major || '<div class="tv-ms tv-br">Vô chính diệu</div>'}${minor ? `<div class="tv-mi">${minor}</div>` : ''}</div>`;
+  };
+  const ld = a.rawDates && a.rawDates.lunarDate, canChi = String(a.chineseDate || '').split(' - ');
+  const lunar = ld ? `${ld.lunarDay}/${ld.lunarMonth}${ld.isLeap ? ' (nhuận)' : ''} năm ${E(canChi[0] || ld.lunarYear)}` : '';
+  const center = `<div class="tv-center"><b>${E(displayName())}</b>
+    <span>Dương lịch: ${b.d}/${b.mo}/${b.y}</span>${lunar ? `<span>Âm lịch: ${lunar}</span>` : ''}
+    <span>Giờ ${b.h === null ? 'chưa rõ (tạm lập giờ Tý)' : E(TUVI_HOURS[b.h])}</span>
+    <span>${E(a.fiveElementsClass)}</span><span>Mệnh chủ ${E(a.soul)} · Thân chủ ${E(a.body)}</span></div>`;
+  // Lời bình: chính tinh cung Mệnh; nếu Mệnh không có chính tinh thì xem sao cung Thiên Di như cách người xưa vẫn mượn
+  const menh = pal.find(p => p.name === 'Mệnh'), di = pal.find(p => p.name === 'Thiên Di');
+  let stars = menh ? menh.majorStars.map(s => s.name) : [], lead = '';
+  if (!stars.length && di) { stars = di.majorStars.map(s => s.name); lead = '<p class="small" style="margin:0 0 8px">Cung Mệnh không có chính tinh (Mệnh vô chính diệu). Người xưa thường mượn sao ở cung Thiên Di để xem.</p>'; }
+  const notes = stars.filter(n => TUVI_STARS[n]).map(n => `<div class="no">${E(n.toUpperCase())}</div><p>${E(TUVI_STARS[n])}</p>`).join('');
+  openSheet(`<h2 class="sheet-title">Lá số của bạn</h2>
+    <div class="tv-grid">${pal.map(cell).join('')}${center}</div>
+    <div class="card tv-note">${lead}${notes || '<p>Lá số đã lập xong. Bạn có thể xem tên các sao trong từng cung ở bàn bên trên.</p>'}
+      <div class="small">Lời bình chỉ nói về tính cách theo cách hiểu truyền thống của từng sao, viết cho vui. Lá số không quyết định tương lai của ai. Mang tính giải trí.</div></div>
+    <p class="small" style="margin:-4px 0 12px">Bàn sao lập bằng thư viện mã nguồn mở iztro (giấy phép MIT), ngay trên máy của bạn.</p>
+    ${resultButtons('tvAgain', 'Lập lá số khác')}`);
+  Snd.chime(.12);
+  $('#doneBtn').onclick = endActivity; $('#tvAgain').onclick = () => tuviForm();
+}
+
 /* ===== LƯU: trang "Sổ cầu an của tôi" ===== */
 function renderBook() {
   const d = Store.data;
@@ -4189,6 +4470,7 @@ function renderBook() {
     <h3>Lời cầu của tôi</h3>${prayers}
     <h3>Quẻ đã xin</h3>${fortunes}
     <h3>Về trò chơi</h3>
+    <p class="small">Đình Lá Số dùng thư viện mã nguồn mở iztro (giấy phép MIT) để lập bàn sao; lời bình là của game, chỉ mang tính giải trí.</p>
     <p class="small">Đây là trò chơi thư giãn, không thay cho việc lễ chùa thật và không bảo đảm điều gì sẽ thành hiện thực. Lời cầu, quẻ và điểm chỉ nằm trên máy này. Khi chơi qua link, người đang cùng vào thấy tên, vị trí và việc nhân vật của bạn đang làm. Người có bảng tên xanh là người chơi thật; khách hành hương còn lại, lời của họ và số đếm người lên chùa là mô phỏng trong game.</p>
     <button class="btn ghost wide" id="bookClear">Xoá toàn bộ sổ</button>`;
   renderLookPicker($('#bookLook'), onLookChange);
@@ -4201,7 +4483,7 @@ function renderBook() {
   $('#bookMain').querySelectorAll('[data-share]').forEach(b => { b.onclick = () => { $('#book').classList.add('hide'); openShare(d.prayers[+b.dataset.share]); }; });
   const clr = $('#bookClear');
   clr.onclick = () => {
-    if (clr.dataset.sure) { Object.assign(d, { incense: 0, best: 0, prayers: [], fortunes: [] }); Store.save(); renderBook(); toast('Đã xoá sổ'); return; }
+    if (clr.dataset.sure) { Object.assign(d, { incense: 0, best: 0, prayers: [], fortunes: [] }); delete d.tuvi; Store.save(); renderBook(); toast('Đã xoá sổ'); return; }
     clr.dataset.sure = '1'; clr.textContent = 'Chạm lần nữa để xoá hẳn'; clr.style.color = 'var(--red)';
   };
 }
@@ -4366,12 +4648,14 @@ function buildZones() {
     { id: 'ribbon', label: 'Treo dải lụa', act: 'Viết lời cầu an', x: 15.6, z: 18, r: 7, my: 3.6, ring: 1.5, rx: 14.2, rz: 17, fn: () => actPrayer('ribbon') },
     { id: 'pond', label: 'Thả hoa đăng', act: 'Viết lời cầu an', x: -19, z: -1, r: 8.9, my: 2.4, ring: 1.5, rx: -12.2, rz: 5.2, fn: () => actPrayer('lantern') },
     { id: 'phat', label: 'Lễ Phật', act: 'Lễ Phật', x: 0, z: -17.1, r: 2.4, my: 4.1, ring: .9, rx: ALTAR_SPOT.x, rz: ALTAR_SPOT.z, fn: actBuddha },
+    { id: 'seer', label: 'Xem bói vui', act: 'Xem bói vui', x: 3.4, z: 41.6, r: 2.6, my: 3.3, ring: 1, rx: SEER.spot.x, rz: SEER.spot.z, out: true, fn: actSeer },
     { id: 'photo', label: 'Chụp ảnh', act: 'Chụp ảnh lưu niệm', x: -2.9, z: 41.6, r: 3, my: 3.3, ring: 1.1, rx: -1.9, rz: 40.9, out: true, fn: actPhoto },
     { id: 'phongsinh', label: 'Phóng sinh', act: 'Thả cá phóng sinh', x: RELEASE.x, z: RELEASE.z + .3, r: 3.2, my: 2.6, ring: 1.1, rx: RELEASE.x, rz: RELEASE.z, fn: actRelease },
     { id: 'quanam', label: 'Lễ Quan Âm', act: 'Lễ Quan Âm', x: QA_SPOT.x, z: QA_SPOT.z + .4, r: 3, my: 2.8, ring: 1, rx: QA_SPOT.x, rz: QA_SPOT.z, fn: actQuanAm },
     { id: 'seat', label: 'Bồ đoàn', act: 'Ngồi thiền', x: 0, z: -999, r: 1.05, my: 1, ring: 0, noMarker: true, fn: actSeat },
     { id: 'bench', label: 'Ghế đá', act: 'Ngồi ghế đá', x: 0, z: -999, r: 2, my: 1, ring: 0, noMarker: true, fn: actBench },
     { id: 'cat', label: 'Mèo', act: 'Vuốt mèo', x: 0, z: -999, r: 2.2, my: 1.2, ring: 0, noMarker: true, fn: actCat },
+    { id: 'tuvi', label: 'Xem lá số', act: 'Xem lá số', x: TUVI.x, z: TUVI.z + .9, r: 3.2, my: 3.6, ring: 1, rx: TUVI.x, rz: TUVI.z + .7, fn: actTuvi },
     { id: 'thay', label: 'Hỏi chuyện Thầy', act: 'Thưa chuyện Thầy', x: -6.6, z: 27, r: 2.8, my: 3.7, ring: 1.1, rx: -6.25, rz: 27, fn: actMonk },
   ];
   Game.zones.forEach(makeMarker); buildZoneRings(Game.zones);
@@ -4440,7 +4724,7 @@ function prepare() {
       catch (e2) { e2.netFail = true; throw e2; }
     }
     await new Promise(r => setTimeout(r, 0)); // nhường cho màn chào vẽ trước
-    initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); buildPhotographer(); buildCats(); restorePlayerOfferings();
+    initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); buildPhotographer(); buildSeer(); buildCats(); restorePlayerOfferings();
     bindInput(); bindPages();
     renderCounter(); setInterval(renderCounter, 60000); setInterval(renderClock, 15000);
     updateCamera(.016, 0); renderer.compile(scene, camera);
@@ -4479,7 +4763,7 @@ $('#action').addEventListener('click', () => { if (Game.zone && !Game.busy) Game
 addEventListener('focusout', () => setTimeout(() => window.scrollTo(0, 0), 60)); // bàn phím ảo đóng thì trả trang về chỗ cũ
 // Âm thanh bị hệ thống ngắt (cuộc gọi, chuyển ứng dụng) thì lần chạm sau bật lại
 for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => { if (Snd.ctx && Snd.ctx.state !== 'running' && !document.hidden) Snd.ctx.resume(); }, { passive: true });
-if (DEBUG) window.__chua = { Player, Game, World, Guests, Store, Cam, Col, Snd, Fx, Rhythm, U, Input, updatePlayer, hasBadWord, groundY, addPlayerRibbon, addPlayerLantern, Net, Family, Monks, goPlace, PLACES, updateSky, actSeat, actBench, Seats, BENCHES, renderClock, Cats, Koi, actRelease, actQuanAm, actCat, buildPlayer, actPhoto, askOrdain, doOrdain, doDisrobe, HairBits, STUDIO, drawPhoto, get renderer() { return renderer; } };
+if (DEBUG) window.__chua = { Player, Game, World, Guests, Store, Cam, Col, Snd, Fx, Rhythm, U, Input, updatePlayer, hasBadWord, groundY, addPlayerRibbon, addPlayerLantern, Net, Family, Monks, actSeer, SEER, goPlace, PLACES, updateSky, actSeat, actBench, Seats, BENCHES, renderClock, Cats, Koi, actRelease, actQuanAm, actCat, buildPlayer, actPhoto, askOrdain, doOrdain, doDisrobe, HairBits, STUDIO, drawPhoto, get renderer() { return renderer; } };
 prepare();
 </script>
 </body>
