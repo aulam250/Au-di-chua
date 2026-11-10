@@ -332,7 +332,7 @@ html,body{background:radial-gradient(120% 120% at 50% 10%,#4a2d5a 0%,#2a1a30 55%
 #fatal{background:radial-gradient(100% 100% at 50% 20%,#4a2d5a,#1a0f1c)}
 /* Hiệu ứng phủ màn: viền tối, vệt nắng, hạt phim (không chặn chạm) */
 #fx-vignette{position:fixed;inset:0;pointer-events:none;z-index:9;background:radial-gradient(120% 120% at 50% 50%,transparent 62%,rgba(26,15,28,.22) 86%,rgba(26,15,28,.55) 100%)}
-#fx-grain{position:fixed;inset:-50%;pointer-events:none;z-index:9;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:grainShift 8s steps(10) infinite}
+#fx-grain{position:fixed;inset:-50%;pointer-events:none;z-index:9;opacity:.035;will-change:transform;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:grainShift 8s steps(10) infinite}@media (pointer:coarse){#fx-grain{display:none}}
 @keyframes grainShift{0%,100%{transform:translate(0,0)}20%{transform:translate(-10%,5%)}40%{transform:translate(-5%,15%)}60%{transform:translate(15%,0)}80%{transform:translate(3%,-15%)}}
 #fx-lightleak{position:fixed;left:0;top:0;width:60%;height:100%;pointer-events:none;z-index:8;opacity:.12;background:radial-gradient(80% 60% at 10% 20%,rgba(255,180,90,.5) 0%,transparent 70%);mix-blend-mode:soft-light;animation:leak 12s ease-in-out infinite alternate}
 @keyframes leak{0%{opacity:.08;transform:translateX(-2%)}100%{opacity:.16;transform:translateX(2%)}}
@@ -976,8 +976,9 @@ const U = { uT: { value: 0 }, uPR: { value: 1 }, uScale: { value: 1 }, uNight: {
 const World = { t: 0, cycle: 260, shadowTick: 0, skyTick: 0, sky: null, water: null, lanternMat: null, ringMat: null, smokeBoost: { value: 0 }, plaques: [] };
 
 function initRenderer() {
+  const isMobile = matchMedia('(pointer:coarse)').matches;
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: false, stencil: false });
-  World.pr = Math.min(window.devicePixelRatio || 1, 2.2);
+  World.pr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2.0);
   renderer.setPixelRatio(World.pr);
   renderer.setSize(innerWidth, innerHeight);
   // UPGRADED GRAPHICS PIPELINE
@@ -997,12 +998,13 @@ function initRenderer() {
   hemi = new THREE.HemisphereLight('#ffd9b0', '#5b4436', 1.35); 
   hemi.position.set(0, 40, 0);
   scene.add(hemi);
-  // Sun - directional with premium shadows
+  // Sun - directional with premium shadows (tối ưu kích thước & số mẫu bóng)
   sun = new THREE.DirectionalLight('#ffc48a', 2.6);
   sun.castShadow = true; 
-  sun.shadow.mapSize.set(matchMedia('(pointer:coarse)').matches ? 2048 : 4096, matchMedia('(pointer:coarse)').matches ? 2048 : 4096); // điện thoại dùng bóng nhẹ hơn
-  sun.shadow.radius = 3;
-  sun.shadow.blurSamples = 12;
+  const shadowSize = isMobile ? 1024 : 2048;
+  sun.shadow.mapSize.set(shadowSize, shadowSize);
+  sun.shadow.radius = 2.5;
+  sun.shadow.blurSamples = isMobile ? 6 : 8;
   const sc = sun.shadow.camera; sc.left = -78; sc.right = 78; sc.top = 78; sc.bottom = -78; sc.near = 10; sc.far = 280;
   sun.shadow.bias = -.0008; sun.shadow.normalBias = .22;
   sun.target.position.set(0, 0, -24); scene.add(sun, sun.target);
@@ -1014,8 +1016,8 @@ function initRenderer() {
   // Altar and burner with enhanced intensity
   altarLight = new THREE.PointLight('#ffcf9c', 80, 28, 1.6); altarLight.position.set(0, 4.8, -16.5); altarLight.castShadow = false; scene.add(altarLight);
   burnerLight = new THREE.PointLight('#ff9a52', 22, 18, 1.6); burnerLight.position.set(0, 3, 8); scene.add(burnerLight);
-  // Ambient subtle
-  const amb = new THREE.AmbientLight('#2a1a30', 0.18); scene.add(amb);
+  // Ambient ban đêm tăng sáng rõ ràng
+  const amb = new THREE.AmbientLight('#483556', 0.25); scene.add(amb); World.amb = amb;
   updateRendererSize();
   addEventListener('resize', updateRendererSize);
   addEventListener('orientationchange', () => setTimeout(updateRendererSize, 200));
@@ -1025,20 +1027,20 @@ function updateRendererSize() {
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.fov = w < h ? 64 : 50; camera.updateProjectionMatrix();
   U.uPR.value = renderer.getPixelRatio(); U.uScale.value = h / 800;
-  if(World.composer){ World.composer.setSize(w,h); World.composer.setPixelRatio(World.pr); }
+  if(World.composer){ World.composer.setSize(w,h); World.composer.setPixelRatio(Math.min(1.0, World.pr)); }
 }
 
 // Khoá màu theo thời gian: 0 hoàng hôn → 1 đêm
 const SKY = [
   { top: '#4c6aa8', hor: '#ffae6b', fog: '#e29a72', sunC: '#ffc48a', sunI: 2.5, hS: '#ffe0bd', hG: '#6a4d3a', hI: 1.25 },
   { top: '#3a3a7d', hor: '#ee7559', fog: '#b76b68', sunC: '#ff8f62', sunI: 1.5, hS: '#d9b5c5', hG: '#4d3a3a', hI: 1.0 },
-  { top: '#1c2257', hor: '#6a4276', fog: '#4f3b63', sunC: '#8d84c9', sunI: .55, hS: '#8d88c2', hG: '#33293d', hI: .85 },
-  { top: '#0a0f2e', hor: '#1f2550', fog: '#1a1f42', sunC: '#a7b4ec', sunI: .5, hS: '#6f7bb8', hG: '#2a2336', hI: .78 },
+  { top: '#1c2257', hor: '#6a4276', fog: '#4f3b63', sunC: '#8d84c9', sunI: .65, hS: '#8d88c2', hG: '#33293d', hI: .95 },
+  { top: '#101638', hor: '#2a3266', fog: '#222954', sunC: '#c5d2ff', sunI: 1.05, hS: '#94a4e0', hG: '#524360', hI: 1.55 },
 ];
-// Trời theo giờ Việt Nam (UTC+7): đêm → rạng đông → bình minh → sáng → trưa → chiều → hoàng hôn → đêm
+// Trời theo giờ Việt Nam (UTC+7): đêm → rạng đông → bình minh → sáng → trưa → chiều → hoàng hôn → đêm (đã tăng sáng đêm x2)
 const SKY_DAY = {
   night: SKY[3],
-  dawn: { top: '#1f2a5e', hor: '#7d5a86', fog: '#5d4c6e', sunC: '#a59ad0', sunI: .6, hS: '#9a96c8', hG: '#3a2f3f', hI: .82 },
+  dawn: { top: '#1f2a5e', hor: '#7d5a86', fog: '#5d4c6e', sunC: '#b5aadc', sunI: .95, hS: '#ada9d8', hG: '#4c3f52', hI: 1.25 },
   rise: { top: '#4a5f9e', hor: '#ffb07a', fog: '#d9a080', sunC: '#ffb98a', sunI: 1.8, hS: '#ffd0b8', hG: '#5a4538', hI: 1.05 },
   morning: { top: '#4f86cc', hor: '#f0dcc0', fog: '#d6d2c4', sunC: '#ffe6c2', sunI: 2.5, hS: '#fff0dc', hG: '#665040', hI: 1.22 },
   noon: { top: '#3f7fd0', hor: '#cfe2ef', fog: '#c2d5df', sunC: '#fff6e6', sunI: 2.7, hS: '#eef4ff', hG: '#6b5a45', hI: 1.3 },
@@ -1189,12 +1191,15 @@ function updateSky() {
   World.sky.uniforms.uSun.value.copy(sd);
   L.set(sd.x, Math.max(sd.y, .2), sd.z).normalize().lerp(N, night).normalize();
   sun.position.copy(L).multiplyScalar(130).add(sun.target.position);
-  if(World.fillLight){ World.fillLight.position.set(-L.x*40, 18 + L.y*10, -L.z*30); World.fillLight.intensity = lerp(0.35, 0.75, 1-U.uNight.value); }
-  altarLight.intensity = lerp(45, 90, U.uGlow.value);
-  burnerLight.intensity = lerp(5, 34, U.uNight.value);
-  if (World.water) { World.water.uniforms.uA.value.copy(World.sky.uniforms.uTop.value).multiplyScalar(.55); World.water.uniforms.uB.value.copy(World.sky.uniforms.uHor.value).multiplyScalar(.7); }
-  if (World.lanternMat) { World.lanternMat.color.setScalar(lerp(.85, 1.45, U.uGlow.value)); World.lanternMat.emissiveIntensity = lerp(0.15, 0.85, U.uGlow.value); }
-  World.plaques.forEach(m => { m.emissiveIntensity = lerp(.25, .85, U.uNight.value); });
+  if(World.fillLight){ World.fillLight.position.set(-L.x*40, 18 + L.y*10, -L.z*30); World.fillLight.intensity = lerp(0.55, 0.9, 1-U.uNight.value*0.35); }
+  if (World.amb) World.amb.intensity = lerp(0.25, 0.65, U.uNight.value);
+  altarLight.intensity = lerp(50, 150, U.uGlow.value);
+  burnerLight.intensity = lerp(10, 65, U.uNight.value);
+  if (World.water) { World.water.uniforms.uA.value.copy(World.sky.uniforms.uTop.value).multiplyScalar(.65); World.water.uniforms.uB.value.copy(World.sky.uniforms.uHor.value).multiplyScalar(.8); }
+  if (World.lanternMat) { World.lanternMat.color.setScalar(lerp(.9, 2.4, U.uGlow.value)); }
+  if (World.floatMat) { World.floatMat.color.setScalar(lerp(.9, 2.3, U.uGlow.value)); }
+  if (World.skyLanternMat) { World.skyLanternMat.color.setScalar(lerp(1.0, 2.5, U.uGlow.value)); }
+  World.plaques.forEach(m => { m.emissiveIntensity = lerp(.35, 1.2, U.uNight.value); });
 }
 
 /* ===== CẢNH: mặt đất, tường, cổng tam quan, biển tên ===== */
@@ -1226,7 +1231,8 @@ function brickTex() {
     c.strokeStyle='rgba(20,10,6,0.08)'; c.lineWidth=0.6;
     for(let i=0;i<120;i++){ c.beginPath(); c.moveTo(rand(0,w),rand(0,h)); c.lineTo(rand(0,w),rand(0,h)); c.stroke(); }
   });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 16; t.colorSpace = THREE.SRGBColorSpace; return t;
+  const aniso = matchMedia('(pointer:coarse)').matches ? 2 : 4;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = aniso; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function slabTex() {
   const t = canvasTex(512, 512, (c, w, h) => {
@@ -1247,7 +1253,8 @@ function slabTex() {
     }
     for (let i = 0; i < 800; i++) { c.fillStyle = `rgba(50,35,25,${rand(.02, .09)})`; c.fillRect(rand(0, w), rand(0, h), rand(1, 6), rand(1, 4)); }
   });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 16; t.colorSpace = THREE.SRGBColorSpace; return t;
+  const aniso = matchMedia('(pointer:coarse)').matches ? 2 : 4;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = aniso; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function plaqueMat(text, w = 768, h = 200, size = 110) {
   const map = canvasTex(w, h, (c) => {
@@ -1618,21 +1625,64 @@ function buildGardens(W) {
 
 /* ===== CẢNH: hàng đèn lồng đỏ, quầng sáng lung linh, vòng sáng chỉ chỗ ===== */
 const LANTERN_SPOTS = [];
+function stoneLantern(W, x, z) {
+  const y = groundY(x, z);
+  box(W, x, y, z, .75, .18, .75, '#736b5e', 0, .03);
+  box(W, x, y + .18, z, .55, .14, .55, '#827a6c', 0, .03);
+  cyl(W, x, y + .32, z, .14, .17, .7, 6, '#7a7265', .03);
+  box(W, x, y + 1.02, z, .65, .12, .65, '#827a6c', 0, .03);
+  box(W, x, y + 1.14, z, .44, .38, .44, '#ffe699', 0, 0);
+  box(W, x, y + 1.14, z, .46, .38, .12, '#625b50', 0, 0);
+  box(W, x, y + 1.14, z, .12, .38, .46, '#625b50', 0, 0);
+  cyl(W, x, y + 1.52, z, .06, .58, .26, 4, '#5e574d', Math.PI / 4);
+  blob(W, x, y + 1.84, z, .09, '#948a78');
+  Col.circle(x, z, .35);
+  LANTERN_SPOTS.push([x, y + 1.33, z, .9]);
+}
 function buildLanterns(W) {
-  // Cột đèn dọc lối đi
-  const poleZ = [30, 24, 18, 12.5, 3.5, -3, -8.5];
+  // Cột đèn dọc lối đi sân trước & ngoài cổng tam quan
+  const poleZ = [54, 48, 42, 36, 30, 24, 18, 12.5, 3.5, -3, -8.5];
   for (const z of poleZ) for (const sg of [-1, 1]) {
     const x = sg * 5.4, ax = sg * 4.7;
     cyl(W, x, 0, z, .07, .1, 3.1, 6, '#4e2e1c', .03); cyl(W, x, 0, z, .17, .24, .16, 6, '#8c8071');
     beam(W, x, 3.05, z, ax, 3.05, z, .07, '#4e2e1c');
-    LANTERN_SPOTS.push([ax, 2.65, z, 1]); Col.circle(x, z, .2);
+    LANTERN_SPOTS.push([ax, 2.65, z, 1.05]); Col.circle(x, z, .2);
+  }
+  // Cột đèn lối sang vườn Tây và bờ suối
+  for (const z of [18, 10, 2, -6, -14, -22]) {
+    const x = -36;
+    cyl(W, x, 0, z, .07, .1, 2.9, 6, '#4e2e1c', .03); cyl(W, x, 0, z, .17, .24, .16, 6, '#8c8071');
+    beam(W, x, 2.85, z, x + .7, 2.85, z, .07, '#4e2e1c');
+    LANTERN_SPOTS.push([x + .7, 2.45, z, .95]); Col.circle(x, z, .2);
   }
   // Dưới hiên chính điện
   for (const x of [-11.2, -5.9, -2.3, 2.3, 5.9, 11.2]) { beam(W, x, 5.9, -12.5, x, 5, -12.5, .03, '#3a2a1c'); LANTERN_SPOTS.push([x, 4.65, -12.5, 1.25]); }
-  // Trong điện và hai bên cổng, gác chuông
+  // Trong điện và hai bên cổng
   for (const x of [-11, 11]) { beam(W, x, 6.3, -18, x, 5.1, -18, .03, '#3a2a1c'); LANTERN_SPOTS.push([x, 4.75, -18, 1.1]); }
   for (const x of [-6.1, 6.1]) { LANTERN_SPOTS.push([x, 3.95, 35.15, 1.15]); }
-  for (const x of [-22, -16]) LANTERN_SPOTS.push([x, 4.55, 23.2, .95]);
+  // Gác chuông & lầu trống đối diện
+  for (const sg of [-1, 1]) {
+    const cx = sg * 19;
+    LANTERN_SPOTS.push([cx - 3.5, 4.4, 20.5, 1.05], [cx + 3.5, 4.4, 20.5, 1.05], [cx - 3.5, 4.4, 25.5, 1.05], [cx + 3.5, 4.4, 25.5, 1.05]);
+  }
+  // Đèn lồng treo trên cành cây bồ đề xum xuê
+  for (let i = 0; i < 8; i++) {
+    const a = i * 0.785, r = 3.0 + (i % 2) * 1.8;
+    LANTERN_SPOTS.push([TREE.x + Math.cos(a) * r, 4.1 + (i % 3) * .35, TREE.z + Math.sin(a) * r, 1.0]);
+  }
+  // Đèn lồng quanh nhà đình Hậu Viện & cổng phụ
+  for (const x of [-7.5, -2.5, 2.5, 7.5]) {
+    LANTERN_SPOTS.push([x, 3.8, -49.2, 1.1], [x, 3.8, -58.8, 1.1]);
+  }
+  for (const sg of [-1, 1]) {
+    LANTERN_SPOTS.push([sg * 17.8, 3.5, -28, 1.0], [sg * 22.2, 3.5, -28, 1.0]);
+  }
+  // ĐÈN ĐÁ CHÙA (Thạch đăng lung) ven suối, cầu đá, ao sen, ao phóng sinh & tượng Quan Âm
+  stoneLantern(W, -41, 10.5); stoneLantern(W, -49, 10.5); stoneLantern(W, -41, 5.5); stoneLantern(W, -49, 5.5);
+  stoneLantern(W, -41, -137.5); stoneLantern(W, -49, -137.5); stoneLantern(W, -41, -142.5); stoneLantern(W, -49, -142.5);
+  stoneLantern(W, -12, -1); stoneLantern(W, -26, -1); stoneLantern(W, -19, 6); stoneLantern(W, -19, -8);
+  stoneLantern(W, -6, -72); stoneLantern(W, -22, -72); stoneLantern(W, -14, -64); stoneLantern(W, -14, -80);
+  stoneLantern(W, -3.2, -87.5); stoneLantern(W, 3.2, -87.5);
   // Lưới đèn lồng: thân đỏ, chóp vàng, tua
   const L = new Batch();
   L.add(new THREE.IcosahedronGeometry(.34, 1), '#ff3a1c', TRS(0, 0, 0, 0, 1, .86, 1), { jit: .08 });
@@ -1654,15 +1704,15 @@ function buildLanterns(W) {
   const gg = new THREE.PlaneGeometry(1, 1); gg.rotateX(-Math.PI / 2);
   const gm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
     vertexShader: `uniform float uT; varying vec2 vU; varying float vF; void main(){ vU=uv; vec4 w=instanceMatrix*vec4(0.,0.,0.,1.); float p=w.x*3.1+w.z*1.7; vF=.84+.16*sin(uT*6.3+p)*sin(uT*2.9+p*1.3); gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.); }`,
-    fragmentShader: `uniform float uGlow; varying vec2 vU; varying float vF; void main(){ float d=length(vU-.5)*2.; float a=pow(max(1.-d,0.),2.)*.42*vF*uGlow; gl_FragColor=vec4(vec3(1.,.47,.2)*a,a); }` });
+    fragmentShader: `uniform float uGlow; varying vec2 vU; varying float vF; void main(){ float d=length(vU-.5)*2.; float a=pow(max(1.-d,0.),1.8)*.85*vF*uGlow; gl_FragColor=vec4(vec3(1.,.52,.22)*a,a); }` });
   const gi = new THREE.InstancedMesh(gg, gm, groundLit.length);
   groundLit.forEach((s, i) => gi.setMatrixAt(i, TRS(s[0], s[3] === 1.1 ? .55 : .04, s[2], 0, 8, 1, 8)));
   gi.frustumCulled = false; gi.renderOrder = 1; scene.add(gi);
 }
 function haloMaterial() {
   return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
-    vertexShader: `attribute float aSize,aP; uniform float uT,uPR,uScale,uGlow; varying float vA; void main(){ float fl=.8+.2*sin(uT*7.3+aP)*sin(uT*3.1+aP*2.); vec4 mv=modelViewMatrix*vec4(position,1.); gl_PointSize=min(aSize*uPR*uScale*(190./-mv.z)*(.9+.1*fl),240.); vA=uGlow*fl; gl_Position=projectionMatrix*mv; }`,
-    fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-.5)*2.; float a=pow(max(1.-d,0.),2.2)*.62*vA; gl_FragColor=vec4(vec3(1.,.55,.26)*a,a); }` });
+    vertexShader: `attribute float aSize,aP; uniform float uT,uPR,uScale,uGlow; varying float vA; void main(){ float fl=.84+.16*sin(uT*6.8+aP)*sin(uT*2.9+aP*2.1); vec4 mv=modelViewMatrix*vec4(position,1.); gl_PointSize=min(aSize*uPR*uScale*(205./-mv.z)*(.9+.1*fl),280.); vA=uGlow*fl; gl_Position=projectionMatrix*mv; }`,
+    fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-.5)*2.; float a=pow(max(1.-d,0.),1.9)*1.1*vA; gl_FragColor=vec4(vec3(1.,.62,.32)*a,a); }` });
 }
 /* ===== CẢNH: khói hương, đom đóm, cánh hoa (hạt tính trong shader, không tốn CPU) ===== */
 function buildParticles() {
@@ -1700,7 +1750,7 @@ function buildParticles() {
 }
 
 /* ===== CẢNH: dải lụa của khách AI trên cây bồ đề, đèn hoa đăng trôi, hương cháy trong lư ===== */
-const Fx = { ribbons: null, playerRibbons: [], lanterns: [], lanternMesh: null, lanternPts: null, sticks: [], stickMesh: null, emberMesh: null, nextStick: 0 };
+const Fx = { ribbons: null, playerRibbons: [], lanterns: [], lanternMesh: null, lanternPts: null, sticks: [], stickMesh: null, emberMesh: null, nextStick: 0, skyLanternMesh: null, skyLanternHalos: null, skyLanternSwarm: null, skyList: [] };
 function buildRibbons(branches) {
   const N = 110, geo = new THREE.PlaneGeometry(.22, 1.0, 1, 4); geo.translate(0, -.5, 0);
   const mat = new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: { uT: U.uT, uGlow: U.uGlow },
@@ -1717,7 +1767,7 @@ function buildRibbons(branches) {
   geo.setAttribute('aP', new THREE.InstancedBufferAttribute(ph, 1));
   im.frustumCulled = false; scene.add(im); Fx.ribbons = im;
 }
-const LANTERN_MAX_PLAYER = 5, LANTERN_AI = 11;
+const LANTERN_MAX_PLAYER = 5, LANTERN_AI = 24;
 function lotusLanternGeo() {
   const b = new Batch();
   for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; b.add(new THREE.ConeGeometry(.17, .42, 4), i % 2 ? '#f5a3b5' : '#f8c2c8', TRS(Math.sin(a) * .3, .17, Math.cos(a) * .3, a, 1, 1, .6, .55)); }
@@ -1730,7 +1780,10 @@ function buildFloatingLanterns() {
   World.floatMat = new THREE.MeshBasicMaterial({ vertexColors: true });
   Fx.lanternMesh = new THREE.InstancedMesh(geo, World.floatMat, LANTERN_AI); Fx.lanternMesh.frustumCulled = false; Fx.lanternMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(Fx.lanternMesh);
   Fx.ai = [];
-  for (let i = 0; i < LANTERN_AI; i++) Fx.ai.push({ r: rand(1.4, POND.r - 1.3), a: rand(0, 6.28), sp: rand(.02, .06) * (Math.random() < .5 ? 1 : -1), ph: rand(0, 6) });
+  for (let i = 0; i < LANTERN_AI; i++) {
+    const isP2 = i >= LANTERN_AI / 2, pd = isP2 ? POND2 : POND;
+    Fx.ai.push({ pond: pd, r: rand(1.4, pd.r - 1.3), a: rand(0, 6.28), sp: rand(.02, .06) * (Math.random() < .5 ? 1 : -1), ph: rand(0, 6) });
+  }
   // Quầng sáng động (khách AI + người chơi)
   const n = LANTERN_AI + LANTERN_MAX_PLAYER, pos = new Float32Array(n * 3), size = new Float32Array(n), ph = new Float32Array(n);
   for (let i = 0; i < n; i++) { size[i] = i < LANTERN_AI ? 1.8 : 0; ph[i] = rand(0, 20); }
@@ -1740,8 +1793,8 @@ function buildFloatingLanterns() {
 function updateFloatingLanterns(dt, t) {
   const pa = Fx.lanternPts.geometry.attributes.position, d = World.dummy;
   for (let i = 0; i < LANTERN_AI; i++) {
-    const L = Fx.ai[i]; L.a += L.sp * dt;
-    const x = POND.x + Math.cos(L.a) * L.r, z = POND.z + Math.sin(L.a) * L.r, y = .1 + Math.sin(t * 1.3 + L.ph) * .025;
+    const L = Fx.ai[i], pd = L.pond || POND; L.a += L.sp * dt;
+    const x = pd.x + Math.cos(L.a) * L.r, z = pd.z + Math.sin(L.a) * L.r, y = .1 + Math.sin(t * 1.3 + L.ph) * .025;
     d.position.set(x, y, z); d.rotation.set(Math.sin(t + L.ph) * .05, L.a, 0); d.scale.setScalar(.95); d.updateMatrix(); Fx.lanternMesh.setMatrixAt(i, d.matrix);
     pa.setXYZ(i, x, y + .4, z);
   }
@@ -1752,7 +1805,99 @@ function updateFloatingLanterns(dt, t) {
     L.group.position.set(x, y, z); L.group.rotation.y = L.a * .6; pa.setXYZ(LANTERN_AI + i, x, y + .9, z);
   }
   pa.needsUpdate = true;
-  World.floatMat.color.setScalar(lerp(.85, 1.25, U.uGlow.value));
+  World.floatMat.color.setScalar(lerp(.9, 2.3, U.uGlow.value));
+}
+
+/* ===== THIÊN ĐĂNG BAY TRÊN TRỜI: lồng đèn bay bồng bềnh trong gió đêm ===== */
+const SKY_3D = 36, SKY_PTS = 140;
+function skyLanternGeo() {
+  const b = new Batch();
+  b.add(new THREE.CylinderGeometry(.34, .24, .72, 8), '#ffb563', TRS(0, .36, 0), { jit: .03 });
+  b.add(new THREE.ConeGeometry(.35, .18, 8), '#ffa345', TRS(0, .81, 0), { jit: .03 });
+  b.add(new THREE.CylinderGeometry(.26, .26, .05, 8), '#7a421c', TRS(0, .02, 0));
+  b.add(new THREE.SphereGeometry(.11, 6, 5), '#ff4210', TRS(0, .19, 0));
+  return b.geometry();
+}
+function buildSkyLanterns() {
+  const geo = skyLanternGeo();
+  World.skyLanternMat = new THREE.MeshBasicMaterial({ vertexColors: true });
+  Fx.skyLanternMesh = new THREE.InstancedMesh(geo, World.skyLanternMat, SKY_3D);
+  Fx.skyLanternMesh.frustumCulled = false;
+  Fx.skyLanternMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene.add(Fx.skyLanternMesh);
+  Fx.skyList = [];
+  const d = World.dummy;
+  for (let i = 0; i < SKY_3D; i++) {
+    const L = {
+      x: rand(-85, 85), y: rand(8, 52), z: rand(-220, 80),
+      sp: rand(0.8, 2.1), sway: rand(0.9, 1.7), ph: rand(0, 6.28),
+      scale: rand(0.9, 1.35), dx: rand(-0.25, 0.45), dz: rand(-0.35, 0.25)
+    };
+    Fx.skyList.push(L);
+    d.position.set(L.x, L.y, L.z); d.scale.setScalar(L.scale); d.updateMatrix();
+    Fx.skyLanternMesh.setMatrixAt(i, d.matrix);
+  }
+  const n = SKY_3D, pos = new Float32Array(n * 3), size = new Float32Array(n), ph = new Float32Array(n);
+  for (let i = 0; i < n; i++) { size[i] = 3.6; ph[i] = rand(0, 20); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  g.setAttribute('aP', new THREE.BufferAttribute(ph, 1));
+  Fx.skyLanternHalos = new THREE.Points(g, World.haloMat);
+  Fx.skyLanternHalos.frustumCulled = false;
+  scene.add(Fx.skyLanternHalos);
+
+  const spPos = new Float32Array(SKY_PTS * 3), spData = new Float32Array(SKY_PTS * 3);
+  for (let i = 0; i < SKY_PTS; i++) {
+    spPos[i * 3] = rand(-150, 150); spPos[i * 3 + 1] = rand(25, 110); spPos[i * 3 + 2] = rand(-300, 120);
+    spData[i * 3] = rand(0.6, 2.0); spData[i * 3 + 1] = rand(0, 6.28); spData[i * 3 + 2] = rand(1.8, 3.6);
+  }
+  const sg = new THREE.BufferGeometry();
+  sg.setAttribute('position', new THREE.BufferAttribute(spPos, 3));
+  sg.setAttribute('aData', new THREE.BufferAttribute(spData, 3));
+  const smat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
+    vertexShader: `attribute vec3 aData; uniform float uT,uPR,uScale,uNight; varying float vA;
+      void main(){
+        float sp = aData.x, ph = aData.y, sz = aData.z;
+        vec3 c = position;
+        c.y = mod(position.y + uT * sp * 1.4, 95.0) + 20.0;
+        c.x += sin(uT * .35 + ph) * 4.5 + uT * .25;
+        c.z += cos(uT * .28 + ph) * 3.8;
+        vec4 mv = modelViewMatrix * vec4(c, 1.);
+        gl_PointSize = sz * uPR * uScale * (110.0 / -mv.z);
+        float flicker = .78 + .22 * sin(uT * 5.0 + ph) * sin(uT * 2.2 + ph * 1.7);
+        vA = (.35 + uNight * .65) * flicker;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `varying float vA; void main(){
+        float d = length(gl_PointCoord - .5) * 2.0;
+        float core = pow(max(1.0 - d, 0.0), 2.4);
+        float halo = pow(max(1.0 - d, 0.0), 1.4) * 0.45;
+        float a = (core + halo) * vA;
+        gl_FragColor = vec4(vec3(1.0, 0.68, 0.32) * a, a);
+      }`
+  });
+  Fx.skyLanternSwarm = new THREE.Points(sg, smat);
+  Fx.skyLanternSwarm.frustumCulled = false;
+  scene.add(Fx.skyLanternSwarm);
+}
+function updateSkyLanterns(dt, t) {
+  if (!Fx.skyLanternMesh) return;
+  const d = World.dummy, pa = Fx.skyLanternHalos.geometry.attributes.position;
+  for (let i = 0; i < SKY_3D; i++) {
+    const L = Fx.skyList[i];
+    L.y += L.sp * dt; L.x += L.dx * dt; L.z += L.dz * dt;
+    if (L.y > 56) { L.y = rand(8, 14); L.x = rand(-85, 85); L.z = rand(-220, 80); }
+    const x = L.x + Math.sin(t * L.sway + L.ph) * .4, y = L.y, z = L.z + Math.cos(t * L.sway * .8 + L.ph) * .35;
+    d.position.set(x, y, z);
+    d.rotation.set(Math.sin(t * 1.1 + L.ph) * .07, t * .15 + L.ph, Math.cos(t * .85 + L.ph) * .07);
+    d.scale.setScalar(L.scale); d.updateMatrix();
+    Fx.skyLanternMesh.setMatrixAt(i, d.matrix);
+    pa.setXYZ(i, x, y + .35, z);
+  }
+  Fx.skyLanternMesh.instanceMatrix.needsUpdate = true;
+  pa.needsUpdate = true;
 }
 // Nén hương: thanh mảnh + đầu đỏ, cháy ngắn dần
 const STICK_MAX = 34, STICK_LIFE = 80;
@@ -1890,6 +2035,7 @@ function buildWorld() {
       const RenderPass = rp.RenderPass;
       const UnrealBloomPass = ub.UnrealBloomPass;
       World.composer = new EffectComposer(renderer);
+      World.composer.setPixelRatio(Math.min(1.0, World.pr));
       World.composer.addPass(new RenderPass(scene, camera));
       const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.28, 0.55, 0.72);
       bloom.threshold = 0.82;
@@ -1915,12 +2061,10 @@ function buildWorld() {
     });
     const m = new THREE.Mesh(geom, mat); 
     m.castShadow = true; m.receiveShadow = true; 
-    // Enable better shadow
-    m.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, alphaTest: 0.5 });
     scene.add(m); return m; 
   };
   mkMesh(W); mkMesh(R, THREE.DoubleSide); mkMesh(S, THREE.DoubleSide);
-  buildRibbons(branches); buildFloatingLanterns(); buildSticks(); buildParticles(); buildKoi();
+  buildRibbons(branches); buildFloatingLanterns(); buildSkyLanterns(); buildSticks(); buildParticles(); buildKoi();
   updateSky(); renderer.shadowMap.needsUpdate = true;
 }
 /* ===== NHÂN VẬT: chibi áo lam, nhìn từ sau lưng, đi lại và các tư thế ===== */
@@ -2223,15 +2367,17 @@ function updateCamera(dt, t) {
 /* ===== ĐIỀU KHIỂN: cần ảo, phím, kéo màn để xoay góc nhìn ===== */
 function bindInput() {
   const cv = renderer.domElement, joy = $('#joy'), knob = $('#knob');
+  let joyCx = 0, joyCy = 0, joyR = 0;
+  const updateJoyRect = () => { const r = joy.getBoundingClientRect(); joyR = r.width / 2; joyCx = r.left + joyR; joyCy = r.top + joyR; };
   const setJoy = (e) => {
-    const r = joy.getBoundingClientRect(), R = r.width / 2, dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R), d = Math.hypot(dx, dy), k = d > R * .8 ? R * .8 / d : 1;
-    const x = dx * k, y = dy * k; knob.style.transform = `translate(${x}px,${y}px)`;
-    Input.jx = x / (R * .8); Input.jy = y / (R * .8);
+    const dx = e.clientX - joyCx, dy = e.clientY - joyCy, d = Math.hypot(dx, dy), maxD = joyR * .8, k = d > maxD ? maxD / d : 1;
+    const x = dx * k, y = dy * k; knob.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0)`;
+    Input.jx = x / maxD; Input.jy = y / maxD;
     if (Math.hypot(Input.jx, Input.jy) < .12) Input.jx = Input.jy = 0;
   };
   const endJoy = () => { Input.joyId = null; Input.jx = Input.jy = 0; knob.style.transform = ''; };
-  joy.addEventListener('pointerdown', e => { e.preventDefault(); Input.joyId = e.pointerId; joy.setPointerCapture(e.pointerId); setJoy(e); });
-  joy.addEventListener('pointermove', e => { if (e.pointerId === Input.joyId) setJoy(e); });
+  joy.addEventListener('pointerdown', e => { e.preventDefault(); Input.joyId = e.pointerId; updateJoyRect(); joy.setPointerCapture(e.pointerId); setJoy(e); });
+  joy.addEventListener('pointermove', e => { if (e.pointerId === Input.joyId) setJoy(e); }, { passive: true });
   joy.addEventListener('pointerup', e => { if (e.pointerId === Input.joyId) endJoy(); });
   joy.addEventListener('pointercancel', e => { if (e.pointerId === Input.joyId) endJoy(); });
   cv.addEventListener('pointerdown', e => {
@@ -2570,7 +2716,7 @@ function updateBubbles(dt) {
     if (_pv.v.z > 1 || Math.abs(_pv.v.x) > 1 || Math.abs(_pv.v.y) > 1) { b.el.style.opacity = 0; continue; }
     b.el.style.opacity = '';
     const x = clamp((_pv.v.x * .5 + .5) * W, 10, W - 150), y = clamp((-_pv.v.y * .5 + .5) * H - 34, 58, H - 40);
-    b.el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
+    b.el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0)`;
   }
 }
 /* ===== NHIỀU NGƯỜI CHƠI: thấy người khác đang mở cùng link, qua kênh "room" của trang đăng =====
@@ -5597,12 +5743,16 @@ function loop(now) {
   updatePlayer(dt, Game.t); followSun(); updatePalace(dt, Game.t); updateXK(dt);
   if (World.dome) { World.dome.position.copy(camera.position); World.stars.position.copy(camera.position); } // trời đi theo máy quay (hoàng cung ở rất xa)
   updateCamera(dt, Game.t);
-  updateGuests(dt, Game.t, _frame);
-  updateSticks(dt, Game.t);
-  updateFloatingLanterns(dt, Game.t);
+  if (!XK.active) {
+    updateGuests(dt, Game.t, _frame);
+    updateSticks(dt, Game.t);
+    updateFloatingLanterns(dt, Game.t);
+    updateSkyLanterns(dt, Game.t);
+    updateFamily(dt, Game.t); updateMonks(dt, Game.t); updateKoi(dt, Game.t);
+  }
   updateBellVisual(dt, Game.t);
   Net.update(dt, Game.t);
-  updateFamily(dt, Game.t); updateMonks(dt, Game.t); updateAudioMix(dt); updateHairBits(dt); updateKoi(dt, Game.t);
+  updateAudioMix(dt); updateHairBits(dt);
   if (World.smokeBoost.value > 0) World.smokeBoost.value = Math.max(0, World.smokeBoost.value - dt / 16);
   for (const r of Fx.playerRibbons) { r.mesh.rotation.z = Math.sin(Game.t * 1.3 + r.ph) * .045; r.mesh.rotation.y = r.base + Math.sin(Game.t * .8 + r.ph) * .08; }
   updateSitZones(); updateTalkZone(); updateZones();
