@@ -2,6 +2,10 @@
 
 Game web 3D. Trên máy chủ này, ai mở link cũng thấy người chơi khác, không cần đăng nhập.
 
+## Đồ hoạ
+
+Game dựng bằng three.js 0.187 (giấy phép MIT) với `WebGPURenderer` và vật liệu viết bằng TSL. Trình duyệt có WebGPU thì chạy WebGPU, chưa có thì tự lùi về WebGL 2. Thêm `?webgl` vào cuối link để ép WebGL 2 khi cần thử. Mọi hình, hoạ tiết và âm thanh đều dựng bằng công thức ngay trong `index.html`, không tải tệp ảnh, mô hình hay nhạc nào.
+
 ## Chạy thử trên máy
 
 Cần Node.js 18 trở lên.

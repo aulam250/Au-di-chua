@@ -6,9 +6,11 @@
 <meta name="theme-color" content="#3b2340">
 <title>Cả nhà Lên Chùa</title>
 <script type="importmap">
-{ "imports": { 
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js",
+  "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.webgpu.js",
+  "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.tsl.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
 } }
 </script>
 
@@ -437,6 +439,8 @@ const inHallArea = (x, z) => z < -11.5 && z > -27.5 && Math.abs(x) < 15.5;
 const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dateVi = iso => { const d = new Date(iso); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`; };
 const DEBUG = location.search.includes('debug');
+const FORCE_WEBGL = /[?&]webgl\b/.test(location.search); // ?webgl: ép dùng WebGL 2 để thử
+
 
 let THREE = null;
 
@@ -971,20 +975,26 @@ function groundY(x, z) {
   return z < -12 ? .5 : lerp(0, .5, (-10.5 - z) / 1.5);
 }
 /* ===== CẢNH: renderer, bầu trời hoàng hôn → đêm, ánh sáng ===== */
-let renderer, scene, camera, sun, hemi, altarLight, burnerLight;
-const U = { uT: { value: 0 }, uPR: { value: 1 }, uScale: { value: 1 }, uNight: { value: 0 }, uGlow: { value: .3 } }; // đồng hồ và độ sáng dùng chung cho mọi shader
+let renderer, scene, camera, sun, hemi, altarLight, burnerLight, T; // T: bộ hàm TSL (three/tsl)
+const U = { uT: { value: 0 }, uPR: { value: 1 }, uScale: { value: 1 }, uNight: { value: 0 }, uGlow: { value: .3 } }; // đồng hồ và độ sáng dùng chung cho mọi shader; initRenderer đổi thành uniform TSL
 const World = { t: 0, cycle: 260, shadowTick: 0, skyTick: 0, sky: null, water: null, lanternMat: null, ringMat: null, smokeBoost: { value: 0 }, plaques: [] };
 
-function initRenderer() {
+/* WebGPURenderer: chạy WebGPU khi trình duyệt có, tự lùi về WebGL 2 khi chưa có. Thêm ?webgl vào link để ép WebGL 2. */
+async function initRenderer() {
   const isMobile = matchMedia('(pointer:coarse)').matches;
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: false, stencil: false });
+  const mk = forceWebGL => new THREE.WebGPURenderer({ antialias: true, powerPreference: 'high-performance', alpha: false, stencil: false, forceWebGL });
+  renderer = mk(FORCE_WEBGL);
+  try { await renderer.init(); }
+  catch (e) { if (FORCE_WEBGL) throw e; console.warn('WebGPU chưa chạy được, chuyển sang WebGL 2', e); renderer = mk(true); await renderer.init(); }
+  World.gfx = renderer.backend && renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL 2';
+  World.mobile = isMobile;
+  for (const k in U) U[k] = T.uniform(U[k].value); // uniform TSL dùng chung, vẫn đọc ghi qua .value như cũ
+  World.smokeBoost = T.uniform(0);
   World.pr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2.0);
   renderer.setPixelRatio(World.pr);
   renderer.setSize(innerWidth, innerHeight);
-  // UPGRADED GRAPHICS PIPELINE
-  renderer.shadowMap.enabled = true; 
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
-  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1000,7 +1010,7 @@ function initRenderer() {
   scene.add(hemi);
   // Sun - directional with premium shadows (tối ưu kích thước & số mẫu bóng)
   sun = new THREE.DirectionalLight('#ffc48a', 2.6);
-  sun.castShadow = true; 
+  sun.castShadow = true; sun.shadow.autoUpdate = false; // bóng tĩnh, chỉ vẽ lại khi shadowDirty()
   const shadowSize = isMobile ? 1024 : 2048;
   sun.shadow.mapSize.set(shadowSize, shadowSize);
   sun.shadow.radius = 2.5;
@@ -1022,12 +1032,13 @@ function initRenderer() {
   addEventListener('resize', updateRendererSize);
   addEventListener('orientationchange', () => setTimeout(updateRendererSize, 200));
 }
+function shadowDirty() { if (sun) sun.shadow.needsUpdate = true; }
 function updateRendererSize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.fov = w < h ? 64 : 50; camera.updateProjectionMatrix();
   U.uPR.value = renderer.getPixelRatio(); U.uScale.value = h / 800;
-  if(World.composer){ World.composer.setSize(w,h); World.composer.setPixelRatio(Math.min(1.0, World.pr)); }
+  fitPassScale();
 }
 
 // Khoá màu theo thời gian: 0 hoàng hôn → 1 đêm
@@ -1057,76 +1068,39 @@ function vnHour() {
 
 function buildSky() {
   for (const k of new Set([...SKY, ...Object.values(SKY_DAY)])) if (!k.top.isColor) for (const n of ['top', 'hor', 'fog', 'sunC', 'hS', 'hG']) k[n] = new THREE.Color(k[n]);
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { 
-      uTop: { value: new THREE.Color() }, 
-      uHor: { value: new THREE.Color() }, 
-      uSun: { value: new THREE.Vector3() }, 
-      uNight: U.uNight, 
-      uMoon: { value: new THREE.Vector3(.45, .62, -.64).normalize() },
-      uT: U.uT,
-      uGlow: U.uGlow
-    },
-    vertexShader: `varying vec3 vD; varying float vH; void main(){ vD=normalize(position); vH=position.y; vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.); gl_Position=p.xyww; }`,
-    fragmentShader: `
-      varying vec3 vD; varying float vH;
-      uniform vec3 uTop,uHor,uSun,uMoon; uniform float uNight, uT, uGlow;
-      // simplex noise for clouds
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
-      float noise(vec2 p){
-        vec2 i=floor(p); vec2 f=fract(p);
-        float a=hash(i); float b=hash(i+vec2(1.,0.)); float c=hash(i+vec2(0.,1.)); float d=hash(i+vec2(1.,1.));
-        vec2 u=f*f*(3.-2.*f);
-        return mix(a,b,u.x) + (c-a)*u.y*(1.-u.x) + (d-b)*u.x*u.y;
-      }
-      void main(){ 
-        vec3 d=normalize(vD); 
-        float h=clamp(d.y*1.2,0.,1.);
-        float h2=pow(h,.52);
-        vec3 c=mix(uHor,uTop,h2);
-        // Horizon haze boost
-        float horizon = pow(1.-abs(d.y), 6.0) * 0.22;
-        c += vec3(1.,.85,.6)*horizon*(1.-uNight*0.7);
-
-        // Sun disc with soft bloom
-        float s=max(dot(d,uSun),0.);
-        float sunDisc = smoothstep(.9982,.9994,s);
-        float sunBloom = pow(s, 5.5);
-        c+=vec3(1.,.62,.33)*sunBloom*.52*(1.-uNight);
-        c+=vec3(1.,.88,.62)*sunDisc*1.8*(1.-uNight);
-        c+=vec3(1.,.95,.8)*pow(s,180.)*3.2*(1.-uNight);
-
-        // Subtle high clouds - only day
-        if(uNight < 0.8){
-          float cloud = noise(d.xz*2.2 + uT*0.02) * noise(d.xz*4.5 + vec2(1.2,0.8));
-          float cloudH = smoothstep(0.05,0.35, d.y) * smoothstep(0.85,0.15, d.y);
-          c = mix(c, c + vec3(0.22,0.18,0.12)*0.35, cloud*cloudH*0.42*(1.-uNight));
-        }
-
-        // Moon + glow
-        float m=max(dot(d,uMoon),0.);
-        float moonDisc = smoothstep(.9991,.99968,m);
-        c+=vec3(.96,.94,.88)*moonDisc*1.1*uNight;
-        c+=vec3(.62,.68,.92)*pow(m, 80.)*.62*uNight;
-        c+=vec3(.5,.58,.85)*pow(m, 240.)*1.2*uNight;
-
-        // Milky way faint
-        if(uNight>0.3){
-          float milky = noise(vec2(atan(d.z,d.x)*2.5, d.y*3.)) * smoothstep(0.1,0.5,abs(d.y));
-          c += vec3(.25,.28,.45)*milky*0.08*uNight;
-        }
-
-        if(d.y<0.02){ 
-          float below = clamp(-d.y*4.,0.,1.);
-          c=mix(c, uHor*0.52, below*0.85);
-        }
-        // Tonemap slightly
-        c = c / (c + vec3(1.0)) * 1.35;
-        gl_FragColor=vec4(c,1.);
-        #include <colorspace_fragment>
-      }`,
+  // Bầu trời viết bằng TSL: chuyển màu theo độ cao, mặt trời, mây mỏng, trăng, dải ngân hà
+  const { Fn, uniform, vec2, vec3, vec4, float, positionLocal, mix, smoothstep, pow, max, dot, clamp, abs, sin, floor, fract, atan, step, normalize, cameraProjectionMatrix, modelViewMatrix } = T;
+  const uTop = uniform(new THREE.Color()), uHor = uniform(new THREE.Color()), uSun = uniform(new THREE.Vector3(0, 1, 0)), uMoon = uniform(new THREE.Vector3(.45, .62, -.64).normalize());
+  const hash = Fn(([p]) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453)));
+  const noise = Fn(([p]) => {
+    const i = floor(p), f = fract(p), a = hash(i), b = hash(i.add(vec2(1, 0))), c = hash(i.add(vec2(0, 1))), d = hash(i.add(vec2(1, 1)));
+    const u = f.mul(f).mul(f.mul(-2).add(3));
+    return mix(a, b, u.x).add(c.sub(a).mul(u.y).mul(u.x.oneMinus())).add(d.sub(b).mul(u.x).mul(u.y));
   });
+  const skyColor = Fn(() => {
+    const d = normalize(positionLocal), uN = U.uNight, day = uN.oneMinus();
+    const c = mix(uHor, uTop, pow(clamp(d.y.mul(1.2), 0, 1), .52)).toVar();
+    c.addAssign(vec3(1, .85, .6).mul(pow(abs(d.y).oneMinus(), 6).mul(.22)).mul(uN.mul(-.7).add(1))); // mù chân trời
+    const s = max(dot(d, uSun), 0); // mặt trời và quầng
+    c.addAssign(vec3(1, .62, .33).mul(pow(s, 5.5)).mul(.52).mul(day));
+    c.addAssign(vec3(1, .88, .62).mul(smoothstep(.9982, .9994, s)).mul(1.8).mul(day));
+    c.addAssign(vec3(1, .95, .8).mul(pow(s, 180)).mul(3.2).mul(day));
+    const cloud = noise(d.xz.mul(2.2).add(U.uT.mul(.02))).mul(noise(d.xz.mul(4.5).add(vec2(1.2, .8)))); // mây cao, chỉ ban ngày
+    const cloudH = smoothstep(.05, .35, d.y).mul(smoothstep(.15, .85, d.y).oneMinus());
+    c.addAssign(vec3(.22, .18, .12).mul(.35).mul(cloud).mul(cloudH).mul(.42).mul(day).mul(step(uN, .8)));
+    const m = max(dot(d, uMoon), 0); // trăng và quầng
+    c.addAssign(vec3(.96, .94, .88).mul(smoothstep(.9991, .99968, m)).mul(1.1).mul(uN));
+    c.addAssign(vec3(.62, .68, .92).mul(pow(m, 80)).mul(.62).mul(uN));
+    c.addAssign(vec3(.5, .58, .85).mul(pow(m, 240)).mul(1.2).mul(uN));
+    const milky = noise(vec2(atan(d.z, d.x).mul(2.5), d.y.mul(3))).mul(smoothstep(.1, .5, abs(d.y))); // dải ngân hà mờ
+    c.addAssign(vec3(.25, .28, .45).mul(milky).mul(.08).mul(uN).mul(step(.3, uN)));
+    c.assign(mix(c, uHor.mul(.52), clamp(d.y.mul(-4), 0, 1).mul(.85))); // dưới đường chân trời
+    return c.div(c.add(1)).mul(1.35);
+  });
+  const mat = new THREE.MeshBasicNodeMaterial({ side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false });
+  mat.colorNode = skyColor();
+  mat.vertexNode = Fn(() => { const p = cameraProjectionMatrix.mul(modelViewMatrix).mul(vec4(positionLocal, 1)); return vec4(p.xy, p.w.mul(.9999), p.w); })(); // luôn nằm sau mọi vật, không bị mặt cắt xa xén
+  mat.uniforms = { uTop, uHor, uSun, uMoon }; // giữ lối đọc ghi .uniforms.x.value của mã cũ
   const dome = new THREE.Mesh(new THREE.SphereGeometry(850, 32, 20), mat); dome.frustumCulled = false; dome.renderOrder = -10; scene.add(dome); World.dome = dome;
   World.sky = mat;
   // Stars - upgraded with twinkle + color variation
@@ -1142,27 +1116,16 @@ function buildSky() {
     else if(t<0.8){ col[i*3]=0.75; col[i*3+1]=0.82; col[i*3+2]=1.0; }
     else { col[i*3]=1.0; col[i*3+1]=0.9; col[i*3+2]=0.7; }
   }
-  const g = new THREE.BufferGeometry(); 
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); 
-  g.setAttribute('aP', new THREE.BufferAttribute(ph, 1));
-  g.setAttribute('aC', new THREE.BufferAttribute(col, 3));
-  g.setAttribute('aS', new THREE.BufferAttribute(sz, 1));
-  const stars = new THREE.Points(g, new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, fog: false, uniforms: U,
-    vertexShader: `attribute float aP; attribute vec3 aC; attribute float aS; uniform float uT,uPR,uNight; varying float vA; varying vec3 vC; void main(){ 
-      float tw = .55+.45*sin(uT*1.6+aP*1.7);
-      vA=uNight*uNight*tw; vC=aC;
-      gl_PointSize=aS* (1.1 + fract(aP*7.)*1.9)*uPR * (0.8+tw*0.5); 
-      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); 
-    }`,
-    fragmentShader: `varying float vA; varying vec3 vC; void main(){ 
-      vec2 uv=gl_PointCoord-.5; float d=dot(uv,uv);
-      float core=smoothstep(.28,.0,d)*0.9;
-      float halo=smoothstep(.5,.15,d)*0.18;
-      gl_FragColor=vec4(vC, vA*(core+halo)); 
-    }`,
-  }));
-  stars.frustumCulled = false; scene.add(stars);
+  // Sao: mỗi ngôi là một tấm nhỏ luôn quay về máy quay (WebGPU không có điểm to hơn 1 px)
+  const { attribute, uv, varying } = T;
+  const aP = attribute('aP', 'float'), tw = sin(U.uT.mul(1.6).add(aP.mul(1.7))).mul(.45).add(.55);
+  const sm = spriteMat();
+  sm.positionNode = attribute('aPos', 'vec3');
+  sm.scaleNode = attribute('aS', 'float').mul(fract(aP.mul(7)).mul(1.9).add(1.1)).mul(tw.mul(.5).add(.8)).mul(PX_ANG * 800);
+  const sd = uv().sub(.5), sd2 = dot(sd, sd);
+  sm.colorNode = varying(attribute('aC', 'vec3'));
+  sm.opacityNode = varying(U.uNight.mul(U.uNight).mul(tw)).mul(smoothstep(0, .28, sd2).oneMinus().mul(.9).add(smoothstep(.15, .5, sd2).oneMinus().mul(.18)));
+  const stars = spriteCloud(n, { aPos: [pos, 3], aP: [ph, 1], aC: [col, 3], aS: [sz, 1] }, sm);
   World.stars = stars;
 }
 function updateSky() {
@@ -1541,35 +1504,25 @@ const POND = { x: -19, z: -1, r: 6.5 };
 function buildPond(W, R) {
   const { x, z, r } = POND;
   for (let i = 0; i < 40; i++) { const a = i / 40 * 6.283, rr = r + rand(-.05, .18); blob(W, x + Math.cos(a) * rr, .12, z + Math.sin(a) * rr, rand(.45, .68), i % 3 ? '#8a7f6e' : '#9d9281', .55, 1, .08, 0); }
-  const water = new THREE.ShaderMaterial({
-    uniforms: { uT: U.uT, uA: { value: new THREE.Color('#2f4558') }, uB: { value: new THREE.Color('#8a6a58') }, uGlow: U.uGlow, uSun: { value: new THREE.Vector3() } },
-    vertexShader: `varying vec2 vP; varying vec3 vW; void main(){ vP=position.xy; vW=vec3(position.xy,0.); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-    fragmentShader: `varying vec2 vP; varying vec3 vW; uniform float uT,uGlow; uniform vec3 uA,uB,uSun;
-      float fbm(vec2 p){
-        float v=0.; float a=0.5;
-        for(int i=0;i<4;i++){ v+=a*sin(p.x*1.8+uT*0.6)*sin(p.y*1.6-uT*0.5); p*=2.1; a*=0.5; }
-        return v;
-      }
-      void main(){ 
-        float w=sin(vP.x*2.8+uT*.85)+sin(vP.y*3.4-uT*.7)+sin((vP.x+vP.y)*1.9+uT*.5)+.6*sin(length(vP)*6.-uT*1.4);
-        w+=fbm(vP*2.2)*0.5;
-        float f=.5+.12*w; 
-        vec3 c=mix(uA,uB,clamp(f,0.,1.));
-        // Sun reflection
-        float sunRefl = pow(max(dot(normalize(vec3(0.,1.,0.2)), normalize(vec3(0.5,0.6,0.3))),0.), 22.) * 0.18;
-        c+=vec3(1.,.92,.72)*sunRefl*uGlow*1.2;
-        // Glow from lanterns
-        c+=vec3(1.,.74,.46)*smoothstep(1.7,2.5,w)*.18*uGlow;
-        // Depth edge darkening
-        float edge = length(vP)*0.18;
-        c = mix(c, c*0.78, clamp(edge,0.,1.)*0.6);
-        // Specular glitter
-        float glitter = step(0.98, sin(vP.x*45.+uT*2.3)*sin(vP.y*45.-uT*2.1));
-        c+=vec3(1.)*glitter*0.22;
-        gl_FragColor=vec4(c,1.);
-        #include <colorspace_fragment>
-      }`,
-  });
+  // Mặt nước TSL: sóng lăn tăn, ánh đèn, lấp lánh
+  const { uniform, vec2, vec3, float, positionLocal, mix, smoothstep, clamp, sin, step, length } = T;
+  const uA = uniform(new THREE.Color('#2f4558')), uB = uniform(new THREE.Color('#8a6a58')), uT = U.uT, uGlow = U.uGlow;
+  const water = new THREE.MeshBasicNodeMaterial({ fog: false });
+  water.colorNode = T.Fn(() => {
+    const vP = positionLocal.xy;
+    const w = sin(vP.x.mul(2.8).add(uT.mul(.85))).add(sin(vP.y.mul(3.4).sub(uT.mul(.7)))).add(sin(vP.x.add(vP.y).mul(1.9).add(uT.mul(.5)))).add(sin(length(vP).mul(6).sub(uT.mul(1.4))).mul(.6)).toVar();
+    let fb = float(0), amp = .5, q = vP.mul(2.2);
+    for (let i = 0; i < 4; i++) { fb = fb.add(sin(q.x.mul(1.8).add(uT.mul(.6))).mul(sin(q.y.mul(1.6).sub(uT.mul(.5)))).mul(amp)); q = q.mul(2.1); amp *= .5; }
+    w.addAssign(fb.mul(.5));
+    const c = mix(uA, uB, clamp(w.mul(.12).add(.5), 0, 1)).toVar();
+    const sunRefl = Math.pow(Math.max(new THREE.Vector3(0, 1, .2).normalize().dot(new THREE.Vector3(.5, .6, .3).normalize()), 0), 22) * .18;
+    c.addAssign(vec3(1, .92, .72).mul(uGlow).mul(sunRefl * 1.2));
+    c.addAssign(vec3(1, .74, .46).mul(smoothstep(1.7, 2.5, w)).mul(.18).mul(uGlow)); // ánh đèn
+    c.assign(mix(c, c.mul(.78), clamp(length(vP).mul(.18), 0, 1).mul(.6))); // tối dần ra mép
+    c.addAssign(step(.98, sin(vP.x.mul(45).add(uT.mul(2.3))).mul(sin(vP.y.mul(45).sub(uT.mul(2.1))))).mul(.22)); // lấp lánh
+    return c;
+  })();
+  water.uniforms = { uA, uB };
   const m = new THREE.Mesh(new THREE.CircleGeometry(r + .1, 36), water); m.rotation.x = -Math.PI / 2; m.position.set(x, .1, z); scene.add(m); World.water = water;
   // Lá sen và hoa sen
   for (let i = 0; i < 26; i++) {
@@ -1696,75 +1649,112 @@ function buildLanterns(W) {
   const spots = LANTERN_SPOTS.concat([[-2.8, 2.45, -20.6, .5], [2.8, 2.45, -20.6, .5], [-7.5, 1.65, 8, .55], [7.5, 1.65, 8, .55]]);
   const n = spots.length, pos = new Float32Array(n * 3), size = new Float32Array(n), ph = new Float32Array(n);
   spots.forEach((s, i) => { pos[i * 3] = s[0]; pos[i * 3 + 1] = s[1]; pos[i * 3 + 2] = s[2]; size[i] = s[3] * 3.2; ph[i] = rand(0, 20); });
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aSize', new THREE.BufferAttribute(size, 1)); g.setAttribute('aP', new THREE.BufferAttribute(ph, 1));
   World.haloMat = haloMaterial();
-  const halo = new THREE.Points(g, World.haloMat); halo.frustumCulled = false; scene.add(halo);
+  spriteCloud(n, { aPos: [pos, 3], aSize: [size, 1], aP: [ph, 1] }, World.haloMat);
   // Vũng sáng trên mặt đất (hình tròn cộng màu)
   const groundLit = LANTERN_SPOTS.filter(s => s[1] < 3 || s[3] === 1.1);
   const gg = new THREE.PlaneGeometry(1, 1); gg.rotateX(-Math.PI / 2);
-  const gm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
-    vertexShader: `uniform float uT; varying vec2 vU; varying float vF; void main(){ vU=uv; vec4 w=instanceMatrix*vec4(0.,0.,0.,1.); float p=w.x*3.1+w.z*1.7; vF=.84+.16*sin(uT*6.3+p)*sin(uT*2.9+p*1.3); gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.); }`,
-    fragmentShader: `uniform float uGlow; varying vec2 vU; varying float vF; void main(){ float d=length(vU-.5)*2.; float a=pow(max(1.-d,0.),1.8)*.85*vF*uGlow; gl_FragColor=vec4(vec3(1.,.52,.22)*a,a); }` });
+  const { attribute, uv, varying, vec3, sin, pow, max, length } = T;
+  const gp = attribute('aP', 'float'), gF = varying(sin(U.uT.mul(6.3).add(gp)).mul(sin(U.uT.mul(2.9).add(gp.mul(1.3)))).mul(.16).add(.84));
+  const gA = pow(max(length(uv().sub(.5)).mul(2).oneMinus(), 0), 1.8).mul(.85).mul(gF).mul(U.uGlow);
+  const gm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+  gm.colorNode = vec3(1, .52, .22).mul(gA); gm.opacityNode = gA;
+  gg.setAttribute('aP', new THREE.InstancedBufferAttribute(new Float32Array(groundLit.map(s => s[0] * 3.1 + s[2] * 1.7)), 1));
   const gi = new THREE.InstancedMesh(gg, gm, groundLit.length);
   groundLit.forEach((s, i) => gi.setMatrixAt(i, TRS(s[0], s[3] === 1.1 ? .55 : .04, s[2], 0, 8, 1, 8)));
   gi.frustumCulled = false; gi.renderOrder = 1; scene.add(gi);
 }
+/* ----- Hạt bằng TSL: mỗi hạt là một tấm vuông luôn quay về máy quay, vị trí và cỡ tính trong shader ----- */
+const PX_ANG = .00156, PT_K = .00135; // đổi cỡ điểm (px) của bản cũ sang góc nhìn và sang mét
+function spriteMat(additive) {
+  return new THREE.SpriteNodeMaterial({ transparent: true, depthWrite: false, fog: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+}
+// attrs: { tên: [mảng, số phần tử mỗi hạt, có đổi mỗi khung hình không] }, đọc trong TSL bằng attribute(tên)
+function spriteCloud(n, attrs, mat, order) {
+  const g = new THREE.PlaneGeometry(1, 1);
+  for (const k in attrs) { const a = new THREE.InstancedBufferAttribute(attrs[k][0], attrs[k][1]); if (attrs[k][2]) a.setUsage(THREE.DynamicDrawUsage); g.setAttribute(k, a); }
+  const m = new THREE.InstancedMesh(g, mat, n); m.frustumCulled = false; if (order != null) m.renderOrder = order; scene.add(m); return m;
+}
+const ptAlpha = e => T.pow(T.max(T.length(T.uv().sub(.5)).mul(2).oneMinus(), 0), e); // độ mờ dần từ tâm ra mép
 function haloMaterial() {
-  return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
-    vertexShader: `attribute float aSize,aP; uniform float uT,uPR,uScale,uGlow; varying float vA; void main(){ float fl=.84+.16*sin(uT*6.8+aP)*sin(uT*2.9+aP*2.1); vec4 mv=modelViewMatrix*vec4(position,1.); gl_PointSize=min(aSize*uPR*uScale*(205./-mv.z)*(.9+.1*fl),280.); vA=uGlow*fl; gl_Position=projectionMatrix*mv; }`,
-    fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-.5)*2.; float a=pow(max(1.-d,0.),1.9)*1.1*vA; gl_FragColor=vec4(vec3(1.,.62,.32)*a,a); }` });
+  const { attribute, varying, vec3, vec4, sin, min, modelViewMatrix } = T;
+  const aPos = attribute('aPos', 'vec3'), aP = attribute('aP', 'float'), uT = U.uT;
+  const fl = sin(uT.mul(6.8).add(aP)).mul(sin(uT.mul(2.9).add(aP.mul(2.1)))).mul(.16).add(.84);
+  const dist = modelViewMatrix.mul(vec4(aPos, 1)).z.negate();
+  const m = spriteMat(true);
+  m.positionNode = aPos;
+  m.scaleNode = min(attribute('aSize', 'float').mul(205 * PT_K).mul(fl.mul(.1).add(.9)), dist.mul(280 * PX_ANG));
+  const a = ptAlpha(1.9).mul(1.1).mul(varying(U.uGlow.mul(fl)));
+  m.colorNode = vec3(1, .62, .32).mul(a); m.opacityNode = a;
+  return m;
 }
 /* ===== CẢNH: khói hương, đom đóm, cánh hoa (hạt tính trong shader, không tốn CPU) ===== */
 function buildParticles() {
+  const { attribute, varying, uv, vec2, vec3, vec4, float, sin, cos, fract, step, mix, smoothstep, pow, length, modelViewMatrix } = T;
+  const uT = U.uT, uNight = U.uNight, uGlow = U.uGlow;
   // Khói từ lư
-  const N = 110, s = new Float32Array(N * 4), p = new Float32Array(N * 3);
+  const N = 110, s = new Float32Array(N * 4);
   for (let i = 0; i < N * 4; i++) s[i] = Math.random();
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('aS', new THREE.BufferAttribute(s, 4));
-  const smoke = new THREE.Points(g, new THREE.ShaderMaterial({ transparent: true, depthWrite: false,
-    uniforms: { uT: U.uT, uPR: U.uPR, uScale: U.uScale, uBoost: World.smokeBoost, uGlow: U.uGlow, uNight: U.uNight },
-    vertexShader: `attribute vec4 aS; uniform float uT,uPR,uScale,uBoost; varying float vA;
-      void main(){ float life=.12+aS.y*.07; float a=fract(uT*life*.9+aS.x); float show=step(aS.w,.45+uBoost*.55);
-        vec3 c=vec3(0.,2.15,8.); float h=a*9.5;
-        c.x+=(aS.z-.5)*1.5*(1.-a*.3)+sin(a*7.+aS.x*20.+uT*.45)*a*1.15+a*a*1.3;
-        c.z+=(aS.y-.5)*1.5*(1.-a*.3)+cos(a*6.+aS.z*20.+uT*.4)*a*1.0; c.y+=h;
-        vec4 mv=modelViewMatrix*vec4(c,1.); gl_PointSize=(1.2+a*5.5)*uPR*uScale*(150./-mv.z);
-        vA=show*smoothstep(0.,.08,a)*(1.-a)*(1.-a)*(.4+uBoost*.25); gl_Position=projectionMatrix*mv; }`,
-    fragmentShader: `uniform float uNight; varying float vA; void main(){ float d=length(gl_PointCoord-.5)*2.; float a=smoothstep(1.,.15,d)*vA; vec3 c=mix(vec3(.96,.9,.84),vec3(.72,.7,.8),uNight); gl_FragColor=vec4(c,a); }` }));
-  smoke.frustumCulled = false; smoke.renderOrder = 3; scene.add(smoke);
+  {
+    const aS = attribute('aS', 'vec4'), uBoost = World.smokeBoost;
+    const a = fract(uT.mul(aS.y.mul(.07).add(.12)).mul(.9).add(aS.x)), show = step(aS.w, uBoost.mul(.55).add(.45)), fade = a.mul(-.3).add(1);
+    const m = spriteMat();
+    m.positionNode = vec3(
+      aS.z.sub(.5).mul(1.5).mul(fade).add(sin(a.mul(7).add(aS.x.mul(20)).add(uT.mul(.45))).mul(a).mul(1.15)).add(a.mul(a).mul(1.3)),
+      a.mul(9.5).add(2.15),
+      aS.y.sub(.5).mul(1.5).mul(fade).add(cos(a.mul(6).add(aS.z.mul(20)).add(uT.mul(.4))).mul(a)).add(8));
+    m.scaleNode = a.mul(5.5).add(1.2).mul(150 * PT_K);
+    const vA = varying(show.mul(smoothstep(0, .08, a)).mul(a.oneMinus()).mul(a.oneMinus()).mul(uBoost.mul(.25).add(.4)));
+    m.colorNode = mix(vec3(.96, .9, .84), vec3(.72, .7, .8), uNight);
+    m.opacityNode = smoothstep(.15, 1, length(uv().sub(.5)).mul(2)).oneMinus().mul(vA);
+    spriteCloud(N, { aS: [s, 4] }, m, 3);
+  }
   // Đom đóm
   const F = 260, fs = new Float32Array(F * 3), fp = new Float32Array(F * 3);
   for (let i = 0; i < F; i++) { fp[i * 3] = rand(-100, 100); fp[i * 3 + 1] = rand(.5, 3.2); fp[i * 3 + 2] = rand(-235, 88); fs[i * 3] = Math.random() * 6.28; fs[i * 3 + 1] = rand(.3, 1); fs[i * 3 + 2] = Math.random() * 6.28; }
-  const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(fp, 3)); fg.setAttribute('aS', new THREE.BufferAttribute(fs, 3));
-  const ff = new THREE.Points(fg, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
-    vertexShader: `attribute vec3 aS; uniform float uT,uPR,uScale,uNight; varying float vA; void main(){ vec3 c=position; c.x+=sin(uT*.34*aS.y+aS.x)*2.1; c.y+=sin(uT*.5+aS.z)*.55; c.z+=cos(uT*.27*aS.y+aS.z)*2.1; vec4 mv=modelViewMatrix*vec4(c,1.); gl_PointSize=(3.5+aS.y*2.5)*uPR*uScale*(26./-mv.z)+1.5*uPR; vA=smoothstep(.15,.7,uNight)*pow(.5+.5*sin(uT*2.2*aS.y+aS.x),3.); gl_Position=projectionMatrix*mv; }`,
-    fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-.5)*2.; float a=pow(max(1.-d,0.),1.6)*vA; gl_FragColor=vec4(vec3(.85,1.,.42)*a,a); }` }));
-  ff.frustumCulled = false; scene.add(ff);
+  {
+    const aS = attribute('aS', 'vec3'), p0 = attribute('aPos', 'vec3');
+    const c = p0.add(vec3(sin(uT.mul(.34).mul(aS.y).add(aS.x)).mul(2.1), sin(uT.mul(.5).add(aS.z)).mul(.55), cos(uT.mul(.27).mul(aS.y).add(aS.z)).mul(2.1)));
+    const m = spriteMat(true);
+    m.positionNode = c;
+    m.scaleNode = aS.y.mul(2.5).add(3.5).mul(26 * PT_K).add(modelViewMatrix.mul(vec4(c, 1)).z.negate().mul(1.5 * PX_ANG));
+    const a = ptAlpha(1.6).mul(varying(smoothstep(.15, .7, uNight).mul(pow(sin(uT.mul(2.2).mul(aS.y).add(aS.x)).mul(.5).add(.5), 3))));
+    m.colorNode = vec3(.85, 1, .42).mul(a); m.opacityNode = a;
+    spriteCloud(F, { aPos: [fp, 3], aS: [fs, 3] }, m);
+  }
   // Cánh hoa rơi
   const P = 80, ps = new Float32Array(P * 3), pp = new Float32Array(P * 3);
   for (let i = 0; i < P; i++) { const nearTree = i % 2 === 0; pp[i * 3] = nearTree ? TREE.x + rand(-9, 9) : rand(-24, 24); pp[i * 3 + 1] = 0; pp[i * 3 + 2] = nearTree ? TREE.z + rand(-9, 9) : rand(-9, 32); ps[i * 3] = Math.random(); ps[i * 3 + 1] = rand(.05, .11); ps[i * 3 + 2] = Math.random() * 6.28; }
-  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3)); pg.setAttribute('aS', new THREE.BufferAttribute(ps, 3));
-  const pt = new THREE.Points(pg, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: U,
-    vertexShader: `attribute vec3 aS; uniform float uT,uPR,uScale; varying float vR,vL; void main(){ float a=fract(uT*aS.y+aS.x); vec3 c=position; c.y=mix(10.,.05,a); c.x+=sin(a*11.+aS.z)*1.1+a*2.; c.z+=cos(a*9.+aS.z)*1.; vec4 mv=modelViewMatrix*vec4(c,1.); gl_PointSize=2.6*uPR*uScale*(70./-mv.z); vR=uT*1.4+aS.z; vL=smoothstep(0.,.03,a)*smoothstep(1.,.97,a); gl_Position=projectionMatrix*mv; }`,
-    fragmentShader: `uniform float uGlow; varying float vR,vL; void main(){ vec2 p=gl_PointCoord-.5; float c=cos(vR),s=sin(vR); p=vec2(p.x*c-p.y*s,p.x*s+p.y*c); float d=length(p*vec2(1.,2.1)); if(d>.42) discard; float l=mix(1.,.5,uGlow); gl_FragColor=vec4(vec3(1.,.74,.8)*l,.9*vL); }` }));
-  pt.frustumCulled = false; scene.add(pt);
+  {
+    const aS = attribute('aS', 'vec3'), p0 = attribute('aPos', 'vec3'), a = fract(uT.mul(aS.y).add(aS.x));
+    const m = spriteMat();
+    m.positionNode = vec3(p0.x.add(sin(a.mul(11).add(aS.z)).mul(1.1)).add(a.mul(2)), mix(float(10), float(.05), a), p0.z.add(cos(a.mul(9).add(aS.z))));
+    m.scaleNode = float(2.6 * 70 * PT_K);
+    m.rotationNode = uT.mul(1.4).add(aS.z);
+    const vL = varying(smoothstep(0, .03, a).mul(smoothstep(.97, 1, a).oneMinus()));
+    m.colorNode = vec3(1, .74, .8).mul(mix(float(1), float(.5), uGlow));
+    m.opacityNode = step(length(uv().sub(.5).mul(vec2(1, 2.1))), .42).mul(.9).mul(vL);
+    spriteCloud(P, { aPos: [pp, 3], aS: [ps, 3] }, m);
+  }
 }
 
 /* ===== CẢNH: dải lụa của khách AI trên cây bồ đề, đèn hoa đăng trôi, hương cháy trong lư ===== */
 const Fx = { ribbons: null, playerRibbons: [], lanterns: [], lanternMesh: null, lanternPts: null, sticks: [], stickMesh: null, emberMesh: null, nextStick: 0, skyLanternMesh: null, skyLanternHalos: null, skyLanternSwarm: null, skyList: [] };
 function buildRibbons(branches) {
   const N = 110, geo = new THREE.PlaneGeometry(.22, 1.0, 1, 4); geo.translate(0, -.5, 0);
-  const mat = new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: { uT: U.uT, uGlow: U.uGlow },
-    vertexShader: `attribute float aP; uniform float uT,uGlow; varying vec3 vC; varying float vY;
-      void main(){ vec3 p=position; float k=-p.y; p.x+=sin(uT*1.5+aP+k*2.2)*.15*k; p.z+=cos(uT*1.1+aP*1.7+k)*.12*k;
-        vec4 w=instanceMatrix*vec4(p,1.); vec3 base=instanceColor; float l=mix(.66,.5,uGlow)+.28*uGlow*sin(aP); vC=base*l; vY=k; gl_Position=projectionMatrix*modelViewMatrix*w; }`,
-    fragmentShader: `varying vec3 vC; varying float vY; void main(){ vec3 c=vC; if(vY<.07||vY>.94) c=mix(c,vec3(.95,.72,.3),.75); gl_FragColor=vec4(c,1.); }` });
-  const im = new THREE.InstancedMesh(geo, mat, N), ph = new Float32Array(N), col = new THREE.Color(), reds = ['#c5281a', '#d63a22', '#b01f18', '#e04c2c', '#c9281f', '#e5a02e'];
+  const { attribute, varying, vec3, sin, cos, mix, step, positionLocal, positionGeometry } = T;
+  const aP = attribute('aP', 'float'), k = positionGeometry.y.negate(), uT = U.uT, uGlow = U.uGlow; // k: 0 ở chỗ buộc, 1 ở đuôi lụa
+  const mat = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide, fog: false });
+  mat.positionNode = positionLocal.add(vec3(sin(uT.mul(1.5).add(aP).add(k.mul(2.2))).mul(.15).mul(k), 0, cos(uT.mul(1.1).add(aP.mul(1.7)).add(k)).mul(.12).mul(k)));
+  const vY = varying(k), base = varying(attribute('aC', 'vec3').mul(mix(T.float(.66), T.float(.5), uGlow).add(uGlow.mul(.28).mul(sin(aP)))));
+  mat.colorNode = mix(base, vec3(.95, .72, .3), step(vY, .07).add(step(.94, vY)).mul(.75));
+  const im = new THREE.InstancedMesh(geo, mat, N), ph = new Float32Array(N), rc = new Float32Array(N * 3), col = new THREE.Color(), reds = ['#c5281a', '#d63a22', '#b01f18', '#e04c2c', '#c9281f', '#e5a02e'];
   for (let i = 0; i < N; i++) {
     const a = rand(0, 6.283), r = rand(2.6, 7.2), y = lerp(5.9, 6.9, clamp((r - 2.6) / 4.6, 0, 1)) + rand(-.2, .2);
     im.setMatrixAt(i, TRS(TREE.x + Math.cos(a) * r, y, TREE.z + Math.sin(a) * r, rand(0, 6.28), 1.15, rand(.85, 1.25), 1));
-    im.setColorAt(i, col.set(reds[i % reds.length])); ph[i] = rand(0, 20);
+    col.set(reds[i % reds.length]).toArray(rc, i * 3); ph[i] = rand(0, 20);
   }
-  geo.setAttribute('aP', new THREE.InstancedBufferAttribute(ph, 1));
+  geo.setAttribute('aP', new THREE.InstancedBufferAttribute(ph, 1)); geo.setAttribute('aC', new THREE.InstancedBufferAttribute(rc, 3));
   im.frustumCulled = false; scene.add(im); Fx.ribbons = im;
 }
 const LANTERN_MAX_PLAYER = 5, LANTERN_AI = 24;
@@ -1787,11 +1777,10 @@ function buildFloatingLanterns() {
   // Quầng sáng động (khách AI + người chơi)
   const n = LANTERN_AI + LANTERN_MAX_PLAYER, pos = new Float32Array(n * 3), size = new Float32Array(n), ph = new Float32Array(n);
   for (let i = 0; i < n; i++) { size[i] = i < LANTERN_AI ? 1.8 : 0; ph[i] = rand(0, 20); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('aSize', new THREE.BufferAttribute(size, 1)); g.setAttribute('aP', new THREE.BufferAttribute(ph, 1));
-  Fx.lanternPts = new THREE.Points(g, World.haloMat); Fx.lanternPts.frustumCulled = false; scene.add(Fx.lanternPts);
+  Fx.lanternPts = spriteCloud(n, { aPos: [pos, 3, 1], aSize: [size, 1, 1], aP: [ph, 1] }, World.haloMat);
 }
 function updateFloatingLanterns(dt, t) {
-  const pa = Fx.lanternPts.geometry.attributes.position, d = World.dummy;
+  const pa = Fx.lanternPts.geometry.attributes.aPos, d = World.dummy;
   for (let i = 0; i < LANTERN_AI; i++) {
     const L = Fx.ai[i], pd = L.pond || POND; L.a += L.sp * dt;
     const x = pd.x + Math.cos(L.a) * L.r, z = pd.z + Math.sin(L.a) * L.r, y = .1 + Math.sin(t * 1.3 + L.ph) * .025;
@@ -1839,52 +1828,28 @@ function buildSkyLanterns() {
   }
   const n = SKY_3D, pos = new Float32Array(n * 3), size = new Float32Array(n), ph = new Float32Array(n);
   for (let i = 0; i < n; i++) { size[i] = 3.6; ph[i] = rand(0, 20); }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
-  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
-  g.setAttribute('aP', new THREE.BufferAttribute(ph, 1));
-  Fx.skyLanternHalos = new THREE.Points(g, World.haloMat);
-  Fx.skyLanternHalos.frustumCulled = false;
-  scene.add(Fx.skyLanternHalos);
+  Fx.skyLanternHalos = spriteCloud(n, { aPos: [pos, 3, 1], aSize: [size, 1], aP: [ph, 1] }, World.haloMat);
 
   const spPos = new Float32Array(SKY_PTS * 3), spData = new Float32Array(SKY_PTS * 3);
   for (let i = 0; i < SKY_PTS; i++) {
     spPos[i * 3] = rand(-150, 150); spPos[i * 3 + 1] = rand(25, 110); spPos[i * 3 + 2] = rand(-300, 120);
     spData[i * 3] = rand(0.6, 2.0); spData[i * 3 + 1] = rand(0, 6.28); spData[i * 3 + 2] = rand(1.8, 3.6);
   }
-  const sg = new THREE.BufferGeometry();
-  sg.setAttribute('position', new THREE.BufferAttribute(spPos, 3));
-  sg.setAttribute('aData', new THREE.BufferAttribute(spData, 3));
-  const smat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: U,
-    vertexShader: `attribute vec3 aData; uniform float uT,uPR,uScale,uNight; varying float vA;
-      void main(){
-        float sp = aData.x, ph = aData.y, sz = aData.z;
-        vec3 c = position;
-        c.y = mod(position.y + uT * sp * 1.4, 95.0) + 20.0;
-        c.x += sin(uT * .35 + ph) * 4.5 + uT * .25;
-        c.z += cos(uT * .28 + ph) * 3.8;
-        vec4 mv = modelViewMatrix * vec4(c, 1.);
-        gl_PointSize = sz * uPR * uScale * (110.0 / -mv.z);
-        float flicker = .78 + .22 * sin(uT * 5.0 + ph) * sin(uT * 2.2 + ph * 1.7);
-        vA = (.35 + uNight * .65) * flicker;
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: `varying float vA; void main(){
-        float d = length(gl_PointCoord - .5) * 2.0;
-        float core = pow(max(1.0 - d, 0.0), 2.4);
-        float halo = pow(max(1.0 - d, 0.0), 1.4) * 0.45;
-        float a = (core + halo) * vA;
-        gl_FragColor = vec4(vec3(1.0, 0.68, 0.32) * a, a);
-      }`
-  });
-  Fx.skyLanternSwarm = new THREE.Points(sg, smat);
-  Fx.skyLanternSwarm.frustumCulled = false;
-  scene.add(Fx.skyLanternSwarm);
+  {
+    const { attribute, varying, vec3, sin, cos, mod } = T, uT = U.uT;
+    const aD = attribute('aData', 'vec3'), p0 = attribute('aPos', 'vec3'), ph = aD.y;
+    const m = spriteMat(true);
+    m.positionNode = vec3(p0.x.add(sin(uT.mul(.35).add(ph)).mul(4.5)).add(uT.mul(.25)), mod(p0.y.add(uT.mul(aD.x).mul(1.4)), 95).add(20), p0.z.add(cos(uT.mul(.28).add(ph)).mul(3.8)));
+    m.scaleNode = aD.z.mul(110 * PT_K);
+    const vA = varying(U.uNight.mul(.65).add(.35).mul(sin(uT.mul(5).add(ph)).mul(sin(uT.mul(2.2).add(ph.mul(1.7)))).mul(.22).add(.78)));
+    const a = ptAlpha(2.4).add(ptAlpha(1.4).mul(.45)).mul(vA);
+    m.colorNode = vec3(1, .68, .32).mul(a); m.opacityNode = a;
+    Fx.skyLanternSwarm = spriteCloud(SKY_PTS, { aPos: [spPos, 3], aData: [spData, 3] }, m);
+  }
 }
 function updateSkyLanterns(dt, t) {
   if (!Fx.skyLanternMesh) return;
-  const d = World.dummy, pa = Fx.skyLanternHalos.geometry.attributes.position;
+  const d = World.dummy, pa = Fx.skyLanternHalos.geometry.attributes.aPos;
   for (let i = 0; i < SKY_3D; i++) {
     const L = Fx.skyList[i];
     L.y += L.sp * dt; L.x += L.dx * dt; L.z += L.dz * dt;
@@ -1994,9 +1959,9 @@ function makeMarker(z) {
 }
 function buildZoneRings(zones) {
   const g = new THREE.RingGeometry(.86, 1, 40); g.rotateX(-Math.PI / 2);
-  const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, uniforms: U,
-    vertexShader: `uniform float uT; varying float vA; void main(){ vA=.5+.3*sin(uT*2.); gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.); }`,
-    fragmentShader: `varying float vA; void main(){ gl_FragColor=vec4(vec3(1.,.82,.42)*vA,vA); }` });
+  const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false });
+  const ringA = T.sin(U.uT.mul(2)).mul(.3).add(.5);
+  m.colorNode = T.vec3(1, .82, .42).mul(ringA); m.opacityNode = ringA;
   const im = new THREE.InstancedMesh(g, m, zones.length);
   zones.forEach((z, i) => { const y = groundY(z.x, z.z) + .05; im.setMatrixAt(i, TRS(z.rx ?? z.x, y, z.rz ?? z.z, 0, z.ring, 1, z.ring)); });
   im.frustumCulled = false; scene.add(im); World.zoneRings = im;
@@ -2021,29 +1986,34 @@ function buildActivityProps(W) {
   // Bàn viết nhỏ cạnh cây bồ đề và hồ sen
   for (const [x, z] of [[14.2, 15.2], [-13.2, 3.4]]) { box(W, x, 0, z, 1.5, .85, .8, '#6e4427', 0, .03); box(W, x, .85, z, 1.7, .08, .95, '#8a5a34', 0, .03); box(W, x, .93, z, .5, .02, .7, '#f4e6c5', 0, .02); box(W, x + .25, .95, z - .18, .55, .02, .05, '#2b1c12'); Col.box(x - .9, x + .9, z - .5, z + .5); }
 }
+/* ===== HẬU KỲ: RenderPipeline của three/webgpu, toả sáng (bloom) viết bằng TSL ===== */
+function initPost() {
+  const post = new THREE.RenderPipeline(renderer), sp = T.pass(scene, camera);
+  post.outputNode = sp; World.post = post; World.scenePass = sp; fitPassScale();
+  import('three/addons/tsl/display/BloomNode.js').then(({ bloom }) => {
+    if (!World.post || World.noBloom) return;
+    World.bloom = bloom(sp.getTextureNode('output'), .28, .42, .82);
+    post.outputNode = sp.add(World.bloom); post.needsUpdate = true;
+  }).catch(e => console.warn('Chưa tải được hiệu ứng toả sáng', e));
+}
+function fitPassScale() { // cảnh vẽ ở độ phân giải vừa phải rồi phóng lên, cho nhẹ máy
+  if (!World.scenePass || !renderer) return;
+  const pr = renderer.getPixelRatio(); World.scenePass.setResolutionScale(Math.min(pr, World.mobile ? 1.15 : 1.5) / pr);
+}
+function dropBloom() { // máy yếu: bỏ toả sáng
+  World.noBloom = true; if (!World.bloom) return;
+  World.bloom = null; World.post.outputNode = World.scenePass; World.post.needsUpdate = true;
+}
+// Mọi lần vẽ đều qua đây: cam là máy quay khác khi chụp ảnh
+function renderFrame(cam) {
+  if (!World.post) { renderer.render(scene, cam || camera); return; }
+  World.scenePass.camera = cam || camera;
+  if (World.bloom) World.bloom.strength.value = 0.22 + U.uGlow.value * 0.18 + U.uNight.value * 0.12;
+  World.post.render();
+}
 function buildWorld() {
   World.dummy = new THREE.Object3D();
-  // Init postprocessing - premium bloom
-  (async () => {
-    try{
-      const [ec, rp, ub] = await Promise.all([
-        import('three/addons/postprocessing/EffectComposer.js'),
-        import('three/addons/postprocessing/RenderPass.js'),
-        import('three/addons/postprocessing/UnrealBloomPass.js')
-      ]);
-      const EffectComposer = ec.EffectComposer;
-      const RenderPass = rp.RenderPass;
-      const UnrealBloomPass = ub.UnrealBloomPass;
-      World.composer = new EffectComposer(renderer);
-      World.composer.setPixelRatio(Math.min(1.0, World.pr));
-      World.composer.addPass(new RenderPass(scene, camera));
-      const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.28, 0.55, 0.72);
-      bloom.threshold = 0.82;
-      bloom.radius = 0.42;
-      World.composer.addPass(bloom);
-      World.bloomPass = bloom;
-    }catch(e){ console.warn('Bloom not loaded', e); }
-  })();
+  initPost();
   const W = new Batch(), R = new Batch(), S = new Batch();
   buildSky(); buildGround(W); buildWalls(W, R); buildGate(W, R); buildHall(W, R, S); buildBurner(W, S); buildBellTower(W, R);
   const branches = buildBodhi(W); buildPond(W, R); buildGardens(W); buildBackyard(W, R, S); buildPark(R); buildPalace(R); buildLanterns(W); buildActivityProps(W);
@@ -2065,7 +2035,7 @@ function buildWorld() {
   };
   mkMesh(W); mkMesh(R, THREE.DoubleSide); mkMesh(S, THREE.DoubleSide);
   buildRibbons(branches); buildFloatingLanterns(); buildSkyLanterns(); buildSticks(); buildParticles(); buildKoi();
-  updateSky(); renderer.shadowMap.needsUpdate = true;
+  updateSky(); shadowDirty();
 }
 /* ===== NHÂN VẬT: chibi áo lam, nhìn từ sau lưng, đi lại và các tư thế ===== */
 const Player = {
@@ -3187,16 +3157,10 @@ function drawPhoto() {
   hide.forEach(o => { o.visible = false; }); Net.setTagsVisible(false);
   const pr = renderer.getPixelRatio(), cw = innerWidth, ch = innerHeight, uS = U.uScale.value, uP = U.uPR.value;
   U.uScale.value = PH / 800; U.uPR.value = 1; renderer.setPixelRatio(1); renderer.setSize(PW, PH, false);
-  renderer.render(scene, shot); x.drawImage(renderer.domElement, M, M, PW, PH);
+  renderFrame(shot); x.drawImage(renderer.domElement, M, M, PW, PH);
   renderer.setPixelRatio(pr); renderer.setSize(cw, ch); U.uScale.value = uS; U.uPR.value = uP;
   hide.forEach((o, i) => { o.visible = vis[i]; }); Net.setTagsVisible(true);
-  if(World.composer && World.bloomPass && Game.started){
-    // Update bloom strength based on time of day
-    World.bloomPass.strength = 0.22 + U.uGlow.value*0.18 + U.uNight.value*0.12;
-    World.composer.render();
-  } else {
-    renderer.render(scene, camera);
-  }
+  renderFrame();
   const vg = x.createRadialGradient(M + PW / 2, M + PH / 2, PH * .38, M + PW / 2, M + PH / 2, PH * .78);
   vg.addColorStop(0, 'rgba(60,30,0,0)'); vg.addColorStop(1, 'rgba(60,30,0,.3)'); x.fillStyle = vg; x.fillRect(M, M, PW, PH);
   x.strokeStyle = 'rgba(0,0,0,.14)'; x.lineWidth = 2; x.strokeRect(M, M, PW, PH);
@@ -3802,7 +3766,7 @@ function xkPhoto(title) {
   const shot = World.xkShot || (World.xkShot = new THREE.PerspectiveCamera(42, PW / PH, .1, 500)), ry = P.ry;
   shot.position.set(P.x + Math.sin(ry) * 3.4, P.y + 1.5, P.z + Math.cos(ry) * 3.4); shot.lookAt(P.x, P.y + 1.05, P.z); shot.updateProjectionMatrix();
   const hide = [...Game.zones.map(z => z.sprite), P.tag, P.mood, World.zoneRings, ...Palace.npcs.filter(n => n.C.group.position.distanceTo(shot.position) < 3.3).map(n => n.C.group)].filter(Boolean), vis = hide.map(o => o.visible); hide.forEach(o => { o.visible = false; });
-  const pr = renderer.getPixelRatio(), cw = innerWidth, ch = innerHeight; renderer.setPixelRatio(1); renderer.setSize(PW, PH, false); renderer.render(scene, shot); x.drawImage(renderer.domElement, M, M, PW, PH); renderer.setPixelRatio(pr); renderer.setSize(cw, ch);
+  const pr = renderer.getPixelRatio(), cw = innerWidth, ch = innerHeight; renderer.setPixelRatio(1); renderer.setSize(PW, PH, false); renderFrame(shot); x.drawImage(renderer.domElement, M, M, PW, PH); renderer.setPixelRatio(pr); renderer.setSize(cw, ch);
   hide.forEach((o, i) => { o.visible = vis[i]; });
   x.strokeStyle = '#c9a24f'; x.lineWidth = 10; x.strokeRect(M - 10, M - 10, PW + 20, PH + 20);
   x.textAlign = 'center'; x.fillStyle = '#8a1e12'; x.font = `bold 58px ${serif}`; x.fillText('Hoàng Cung Đại Việt', W / 2, 1140);
@@ -4525,7 +4489,7 @@ function buildBackyard(W, R, S) {
   // Ao phóng sinh
   const P2 = POND2;
   for (let i = 0; i < 46; i++) { const a = i / 46 * 6.283, rr = P2.r + rand(-.05, .18); blob(W, P2.x + Math.cos(a) * rr, .12, P2.z + Math.sin(a) * rr, rand(.45, .7), i % 3 ? '#8a7f6e' : '#9d9281', .55, 1, .08, 0); }
-  const w2 = new THREE.ShaderMaterial({ uniforms: { uT: U.uT, uA: World.water.uniforms.uA, uB: World.water.uniforms.uB, uGlow: U.uGlow }, vertexShader: World.water.vertexShader, fragmentShader: World.water.fragmentShader });
+  const w2 = World.water; // dùng chung vật liệu nước
   const wm = new THREE.Mesh(new THREE.CircleGeometry(P2.r + .1, 40), w2); wm.rotation.x = -Math.PI / 2; wm.position.set(P2.x, .1, P2.z); scene.add(wm);
   for (let i = 0; i < 14; i++) {
     const a = rand(0, 6.28), d = Math.sqrt(Math.random()) * (P2.r - 1.2), lx = P2.x + Math.cos(a) * d, lz = P2.z + Math.sin(a) * d, s = rand(.42, .75);
@@ -4896,7 +4860,7 @@ function ancientTree(B, x, z, s = 1, kind = 'da', collide = true) {
   if (collide) Col.circle(x, z, R0 * 1.3);
 }
 function stoneBench(B, x, z) { box(B, x, .42, z, 2.2, .14, .7, '#9d9281'); box(B, x - .8, 0, z, .3, .42, .55, '#7c7263'); box(B, x + .8, 0, z, .3, .42, .55, '#7c7263'); Col.box(x - 1.15, x + 1.15, z - .4, z + .4); BENCHES.push([x, z]); }
-function stoneLantern(B, x, z) { cyl(B, x, 0, z, .3, .42, .25, 6, '#8c8071'); cyl(B, x, .25, z, .16, .2, 1.15, 6, '#9d9281'); box(B, x, 1.4, z, .55, .5, .55, '#d9b76a', 0, .03); B.add(new THREE.ConeGeometry(.56, .4, 4), '#7c7263', TRS(x, 2.1, z, Math.PI / 4)); Col.circle(x, z, .42); }
+function parkLantern(B, x, z) { cyl(B, x, 0, z, .3, .42, .25, 6, '#8c8071'); cyl(B, x, .25, z, .16, .2, 1.15, 6, '#9d9281'); box(B, x, 1.4, z, .55, .5, .55, '#d9b76a', 0, .03); B.add(new THREE.ConeGeometry(.56, .4, 4), '#7c7263', TRS(x, 2.1, z, Math.PI / 4)); Col.circle(x, z, .42); }
 function stupa(B, x, z, n, s) {
   cyl(B, x, 0, z, 1.6 * s, 1.75 * s, .3, 8, '#8c8071');
   for (let i = 0; i < n; i++) { const r = (1.15 - i * .11) * s, y = .3 + i * 1.05 * s; cyl(B, x, y, z, r * .92, r, .9 * s, 8, '#a8603f', .05); cyl(B, x, y + .88 * s, z, r * 1.18, r * 1.1, .17 * s, 8, '#8d3a25', .05); }
@@ -4912,7 +4876,7 @@ function pavilion(B, R, x, z, name) {
   stoneBench(B, x, z);
 }
 function parkWater(geo, x, z) {
-  const mat = World.waterMat2 || (World.waterMat2 = new THREE.ShaderMaterial({ uniforms: { uT: U.uT, uA: World.water.uniforms.uA, uB: World.water.uniforms.uB, uGlow: U.uGlow }, vertexShader: World.water.vertexShader, fragmentShader: World.water.fragmentShader }));
+  const mat = World.water; // dùng chung vật liệu nước
   const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.set(x, .1, z); scene.add(m); return m;
 }
 function lotusPatch(B, cx, cz, r, n) {
@@ -4965,7 +4929,7 @@ function buildPark(R) {
   box(PW, L.x - .8, 5.1, L.z + 1, .6, .5, .5, '#c9b48f'); PW.add(new THREE.ConeGeometry(.55, .45, 4), '#a63a22', TRS(L.x - .8, 5.85, L.z + 1, Math.PI / 4)); // chùa nhỏ trên non bộ
   for (let i = 0; i < 6; i++) { const a = rand(0, 6.28); blob(PW, L.x + Math.cos(a) * 1.5, rand(3, 6.4), L.z + Math.sin(a) * 1.5, .45, '#4f7a35', .7, 1.1, .1); }
   pavilion(PW, R, L.x, L.z + L.r + 4.5, 'Thuỷ Đình');
-  for (const a of [.6, 2.2, 3.6, 5]) stoneLantern(PW, L.x + Math.cos(a) * (L.r + 2.2), L.z + Math.sin(a) * (L.r + 2.2));
+  for (const a of [.6, 2.2, 3.6, 5]) parkLantern(PW, L.x + Math.cos(a) * (L.r + 2.2), L.z + Math.sin(a) * (L.r + 2.2));
   // ---- Rừng trúc, có lối đi ở giữa
   for (let i = 0; i < 80; i++) {
     let cx = rand(-101, -55), cz = rand(-156, -100); if (Math.abs(cx + 78) < 3.5) cx += cx < -78 ? -4 : 4;
@@ -4987,7 +4951,7 @@ function buildPark(R) {
   gravel.wrapS = gravel.wrapT = THREE.RepeatWrapping; flatPlane(gravel, 30, 20, gx, gz, .012, 6, 4);
   for (const [dx, dz, side] of [[-15, 0, 20], [15, 0, 20], [0, -10, 30], [0, 10, 30]]) box(PE, gx + dx, 0, gz + dz, side === 20 ? .25 : 30.5, .18, side === 20 ? 20 : .25, '#6b4a2e');
   for (const [dx, dz, n] of [[-8, -3, 3], [-1, 4, 2], [6, -4, 4], [10, 5, 1], [-11, 6, 2]]) { for (let k = 0; k < n; k++) { const s = rand(.7, 1.5) * (k ? .7 : 1); blob(PE, gx + dx + rand(-1.2, 1.2), s * .45, gz + dz + rand(-1.2, 1.2), s, pick(rock), rand(.6, 1.1), 1, .12, 0); } blob(PE, gx + dx, .1, gz + dz, 2, '#5f7d3c', .12, 1, .1); Col.circle(gx + dx, gz + dz, 1.6); }
-  pavilion(PE, R, gx + 20, gz, 'Thiền Đình'); stoneLantern(PE, gx - 17, gz + 11); stoneLantern(PE, gx - 17, gz - 11);
+  pavilion(PE, R, gx + 20, gz, 'Thiền Đình'); parkLantern(PE, gx - 17, gz + 11); parkLantern(PE, gx - 17, gz - 11);
   addPlaque('Vườn Đá Thiền', gx - 15.2, 1.1, gz, 2.4, .5, -Math.PI / 2, 600, 128, 76);
   // ---- Vườn hoa
   const flowers = ['#f2c94c', '#e85d75', '#f29a3c', '#d9a3e0', '#ffffff', '#e8453c'];
@@ -5009,13 +4973,13 @@ function buildPark(R) {
   addPlaque('Vườn Tháp', 51.5, 1.1, -60, 2.2, .5, -Math.PI / 2, 512, 112, 76); box(PE, 51.7, 0, -60, .2, 1.6, 2.4, '#8c8274');
   // ---- Cây si cổ thụ bên ao nhỏ
   parkWater(new THREE.CircleGeometry(8.1, 36), 75, -140); ring(PE, 75, -140, 8, 40); Col.circle(75, -140, 8.35); lotusPatch(PE, 75, -140, 5.5, 14);
-  ancientTree(PE, 64, -131, 1.25, 'si'); stoneBench(PE, 62, -146); stoneLantern(PE, 84, -128);
+  ancientTree(PE, 64, -131, 1.25, 'si'); stoneBench(PE, 62, -146); parkLantern(PE, 84, -128);
   // ---- Vườn Đông: cây cổ thụ rải rác
   for (const [x, z, s, k] of [[54, 84, 1, 'bang'], [94, 82, 1.1, 'da'], [94, 10, 1, 'si'], [38, 22, .8, 'dai'], [38, -25, .9, 'bang'], [95, -95, 1, 'bang'], [40, -100, 1, 'da'], [90, -185, 1.1, 'si'], [50, -215, 1, 'bang'], [38, -160, .8, 'dai'], [70, -190, 1, 'thong'], [86, -222, 1, 'thong'], [55, -180, 1, 'thong']]) ancientTree(PE, x, z, s, k);
   for (let i = 0; i < 26; i++) { const x = rand(32, 100), z = rand(-235, 85); if (Math.abs(x - 66) < 4 || Math.abs(z - 8) < 4 || (x < 94 && x > 42 && z > -82 && z < 58) || Math.hypot(x - 75, z + 140) < 13) continue; tree(PE, x, z, rand(6, 10), Math.random() < .3 ? 1 : 0); }
   stoneBench(PE, 40, -60); stoneBench(PE, 40, 50);
   // ---- Phía sau: đường thông cổ thụ dẫn tới Bảo tháp, tượng Di Lặc
-  for (let z = -104; z > -205; z -= 10) for (const sg of [-1, 1]) { ancientTree(PB, sg * rand(7, 8.5), z + rand(-1.5, 1.5), rand(.8, 1), 'thong'); if (Math.abs(z + 104) % 20 < 1) stoneLantern(PB, sg * 4.2, z - 5); }
+  for (let z = -104; z > -205; z -= 10) for (const sg of [-1, 1]) { ancientTree(PB, sg * rand(7, 8.5), z + rand(-1.5, 1.5), rand(.8, 1), 'thong'); if (Math.abs(z + 104) % 20 < 1) parkLantern(PB, sg * 4.2, z - 5); }
   box(PB, 0, 0, -218, 15, .5, 15, '#9c9384'); box(PB, 0, .5, -218, 12.5, .4, 12.5, '#a89a86'); stupa(PB, 0, -218, 9, 2.1); addPlaque('Bảo Tháp', 0, 3.6, -215.7, 2.2, .55, 0, 512, 128, 84); Col.box(-7.5, 7.5, -225.5, -210.5, 2);
   for (const sg of [-1, 1]) { stupa(PB, sg * 14, -214, 3, .8); ancientTree(PB, sg * 22, -224, 1.1, sg < 0 ? 'da' : 'si'); }
   box(PB, 20, 0, -168, 4.4, 1.4, 4.4, '#9c9384'); placeStatue(statueGeo(false), 20, 1.4, -168, .85, -Math.PI / 2); Col.box(17.8, 22.2, -170.2, -165.8, 3); addPlaque('Phật Di Lặc', 17.78, .8, -168, 2, .45, -Math.PI / 2, 512, 112, 76);
@@ -5042,7 +5006,7 @@ function buildPark(R) {
 // Bóng đổ đi theo người chơi trong khu vườn rộng
 function followSun() {
   const sx = Math.round(Player.x / 24) * 24, sz = Math.round(Player.z / 24) * 24;
-  if (sx !== sun.target.position.x || sz !== sun.target.position.z) { sun.target.position.set(sx, 0, sz); updateSky(); renderer.shadowMap.needsUpdate = true; }
+  if (sx !== sun.target.position.x || sz !== sun.target.position.z) { sun.target.position.set(sx, 0, sz); updateSky(); shadowDirty(); }
 }
 function openMap() {
   const list = XK.active ? PAL_PLACES : PLACES;
@@ -5548,20 +5512,14 @@ function captureScene(ctx, W, H) {
   const famSaved = Family.list.map(m => { const g = m.C.group, s = [g.position.x, g.position.y, g.position.z, g.rotation.y]; g.position.set(m.d.side * 1.25, 0, 24.7); g.rotation.y = Math.PI; return s; });
   const uS = U.uScale.value, uP = U.uPR.value; U.uScale.value = H / 800; U.uPR.value = 1;
   renderer.setPixelRatio(1); renderer.setSize(W, H, false);
-  renderer.render(scene, shot);
+  renderFrame(shot);
   ctx.drawImage(renderer.domElement, 0, 0, W, H);
   renderer.setPixelRatio(pr); renderer.setSize(cw, ch);
   U.uScale.value = uS; U.uPR.value = uP;
   Family.list.forEach((m, k) => { const s = famSaved[k]; m.C.group.position.set(s[0], s[1], s[2]); m.C.group.rotation.y = s[3]; });
   Player.group.position.set(saved.x, saved.y, saved.z); Player.group.rotation.y = saved.ry; Player.tag.visible = !Game.busy; Net.setTagsVisible(true);
   Game.zones.forEach((z, i) => { z.sprite.visible = markers[i]; });
-  if(World.composer && World.bloomPass && Game.started){
-    // Update bloom strength based on time of day
-    World.bloomPass.strength = 0.22 + U.uGlow.value*0.18 + U.uNight.value*0.12;
-    World.composer.render();
-  } else {
-    renderer.render(scene, camera);
-  }
+  renderFrame();
 }
 function drawShareImage(prayer) {
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -5737,7 +5695,7 @@ function loop(now) {
   World.t = Math.min(1, World.t + dt / World.cycle);
   _skyT -= dt; if (_skyT <= 0) { _skyT = .4; updateSky(); }
   // Bóng tĩnh, chỉ vẽ lại vài giây một lần khi nắng đổi
-  _shadowT -= dt; if (_shadowT <= 0) { _shadowT = 8; renderer.shadowMap.needsUpdate = true; }
+  _shadowT -= dt; if (_shadowT <= 0) { _shadowT = 8; shadowDirty(); }
   for (let i = Game.tweens.length - 1; i >= 0; i--) { const tw = Game.tweens[i]; tw.t += dt; const k = Math.min(1, tw.t / tw.dur); tw.fn(k); if (k >= 1) { Game.tweens.splice(i, 1); tw.res(); } }
   Game.update?.(dt);
   updatePlayer(dt, Game.t); followSun(); updatePalace(dt, Game.t); updateXK(dt);
@@ -5756,44 +5714,39 @@ function loop(now) {
   if (World.smokeBoost.value > 0) World.smokeBoost.value = Math.max(0, World.smokeBoost.value - dt / 16);
   for (const r of Fx.playerRibbons) { r.mesh.rotation.z = Math.sin(Game.t * 1.3 + r.ph) * .045; r.mesh.rotation.y = r.base + Math.sin(Game.t * .8 + r.ph) * .08; }
   updateSitZones(); updateTalkZone(); updateZones();
-  if(World.composer && World.bloomPass && Game.started){
-    // Update bloom strength based on time of day
-    World.bloomPass.strength = 0.22 + U.uGlow.value*0.18 + U.uNight.value*0.12;
-    World.composer.render();
-  } else {
-    renderer.render(scene, camera);
-  }
+  renderFrame();
   // Máy yếu: tự giảm độ phân giải
   _fpsT += Math.min(realDt, 1); _fpsN++; // đo bằng thời gian thật, không dùng dt đã kẹp
   if (_fpsT > 3) {
     const fps = _fpsN / _fpsT; _fpsT = 0; _fpsN = 0; World.fps = fps;
     const pr = renderer.getPixelRatio();
-    if (fps < 27 && World.bloomPass && !document.hidden && Game.t > 8) { World.bloomPass = null; World.composer = null; } // máy yếu: tắt hiệu ứng toả sáng trước
-    else if (fps < 27 && pr > 1 && !document.hidden) { renderer.setPixelRatio(Math.max(1, pr - .35)); updateRendererSize(); }
+    if (fps < 27 && World.bloom && !document.hidden && Game.t > 8) dropBloom(); // máy yếu: tắt hiệu ứng toả sáng trước
+    else if (fps < 27 && !World.bloom && pr > 1 && !document.hidden) { renderer.setPixelRatio(Math.max(1, pr - .35)); updateRendererSize(); }
   }
 }
 let readyPromise;
 function prepare() {
   readyPromise = (async () => {
-    try { THREE = await import('three'); }
+    // Three.js bản WebGPU và TSL (giấy phép MIT), tải từ jsDelivr, hỏng thì thử unpkg
+    try { [THREE, T] = await Promise.all([import('three'), import('three/tsl')]); }
     catch (e) {
-      try { THREE = await import('https://unpkg.com/three@0.160.0/build/three.module.js'); }
+      try { [THREE, T] = await Promise.all([import('https://unpkg.com/three@0.187.0/build/three.webgpu.js'), import('https://unpkg.com/three@0.187.0/build/three.tsl.js')]); }
       catch (e2) { e2.netFail = true; throw e2; }
     }
     await new Promise(r => setTimeout(r, 0)); // nhường cho màn chào vẽ trước
-    initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); buildPhotographer(); buildSeer(); buildCats(); restorePlayerOfferings();
+    await initRenderer(); buildWorld(); initGuestScratch(); buildZones(); buildPlayer(); buildGuests(); buildFamily(); buildMonks(); buildPhotographer(); buildSeer(); buildCats(); restorePlayerOfferings();
     bindInput(); bindPages();
     renderCounter(); setInterval(renderCounter, 60000); setInterval(renderClock, 15000);
-    updateCamera(.016, 0); renderer.compile(scene, camera);
+    updateCamera(.016, 0); try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn(e); }
   })();
   readyPromise.catch(showFatal);
 }
 function showFatal(e) {
   console.error(e);
-  const noGL = /webgl/i.test(String(e && e.message));
+  const noGL = /webgl|webgpu|context|adapter/i.test(String(e && e.message));
   const f = $('#fatal');
   f.textContent = e && e.netFail ? 'Chưa tải được thư viện đồ hoạ Three.js. Bạn kiểm tra kết nối mạng rồi tải lại trang nhé.'
-    : noGL ? 'Máy hoặc trình duyệt này chưa bật được đồ hoạ WebGL nên chưa vào chùa được. Bạn thử trình duyệt khác nhé.'
+    : noGL ? 'Máy hoặc trình duyệt này chưa bật được đồ hoạ WebGPU hay WebGL 2 nên chưa vào chùa được. Bạn thử trình duyệt khác nhé.'
     : 'Có lỗi khi dựng khung cảnh. Bạn tải lại trang giúp nhé.';
   if (DEBUG) f.textContent += ' [' + (e && (e.stack || e.message)) + ']';
   f.classList.remove('hide');
